@@ -4,12 +4,13 @@
 
 ## Hecho
 - Paso 01: arranque. Creados `AGENTS.md`, `.agents/rules/` (regla 00) y `memory-bank/`.
+- Paso 02: resumen inicial guardado en `memory-bank/registro/resumen-inicial-agente.md`.
 
 ## En curso
 - —
 
 ## Siguiente
-- Paso 02: guardar el resumen inicial del agente.
+- Paso 03: levantar el entorno y registrar hallazgos en `memory-bank/registro/hallazgos-entorno.md`.
 
 ## Estado del proyecto
 - El gestor de incidencias no existe todavía.

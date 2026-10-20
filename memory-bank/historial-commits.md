@@ -26,3 +26,18 @@
 - **Desviaciones evitadas:** ninguna
 - **Cambios respecto al plan:** ninguno
 - **Commit:** `chore(memory-bank): crear manual del agente, banco de memoria y regla 00`
+
+## Paso 02 — Resumen inicial (la hipótesis)
+- **Fecha:** 2026-10-20
+- **Modo:** Agent (el resumen se generó en modo Ask)
+- **Checklist:** RC1, E4 · **Criterios:** —
+- **Qué se hizo:**
+  - Copiado el Anexo A (`resumen.md`) literalmente en `memory-bank/registro/resumen-inicial-agente.md`, con `cp`.
+  - Añadida una cabecera con la fecha, el modo (Ask) y la nota de no editar.
+  - Comprobado con `diff` que el cuerpo es idéntico a `resumen.md`.
+- **Archivos:** `memory-bank/registro/resumen-inicial-agente.md` — hipótesis de partida, sin corregir ni comentar (el contraste es el Paso 04)
+- **Reglas aplicadas:** 00-commits-y-bitacora
+- **Decisiones y pendientes:** `resumen.md` de la raíz sigue sin seguir en git y no se commitea; el usuario decide si lo borra.
+- **Desviaciones evitadas:** ninguna
+- **Cambios respecto al plan:** ninguno
+- **Commit:** `docs(memory-bank): guardar el resumen inicial del agente`
