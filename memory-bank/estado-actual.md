@@ -6,12 +6,13 @@
 - Paso 01: arranque. Creados `AGENTS.md`, `.agents/rules/` (regla 00) y `memory-bank/`.
 - Paso 02: resumen inicial guardado en `memory-bank/registro/resumen-inicial-agente.md`.
 - Paso 03: entorno revisado; hallazgos en `memory-bank/registro/hallazgos-entorno.md`.
+- Paso 04: resumen inicial contrastado con el repo; discrepancias en `memory-bank/registro/discrepancias.md`.
 
 ## En curso
 - —
 
 ## Siguiente
-- Paso 04: contraste del resumen inicial con el repo y registro de discrepancias.
+- Paso 05: identificar convenciones y registrar propuestas de mejora.
 
 ## Estado del proyecto
 - El gestor de incidencias no existe todavía.

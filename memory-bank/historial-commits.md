@@ -64,3 +64,21 @@
 - **Desviaciones evitadas:** ninguna
 - **Cambios respecto al plan:** ninguno
 - **Commit:** `chore(env): habilitar sincronización base con uv`
+
+## Paso 04 — Contraste y discrepancias
+- **Fecha:** 2026-10-26
+- **Modo:** Agent
+- **Checklist:** RC2, RC3 · **Criterios:** C07
+- **Qué se hizo:**
+  - Contrastadas las afirmaciones del resumen inicial con las guías, manifiestos, código y archivos versionados.
+  - Separados los hechos de la instantánea del 2026-10-20 de los cambios posteriores de los Pasos 01-03.
+  - Registradas omisiones del devcontainer, estado vacío de la plantilla de agente y discrepancia entre el README y `CONTEXT.md`.
+- **Archivos:**
+  - `memory-bank/registro/discrepancias.md` — afirmaciones, evidencias, veredictos, omisiones y conclusiones
+  - `memory-bank/estado-actual.md` — Paso 04 completado y Paso 05 como siguiente
+  - `memory-bank/historial-commits.md` — bitácora del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora
+- **Decisiones y pendientes:** el resumen inicial se conserva intacto; no se confundieron recomendaciones documentadas con implementaciones.
+- **Desviaciones evitadas:** ninguna
+- **Cambios respecto al plan:** ninguno
+- **Commit:** `docs(memory-bank): registrar discrepancias del resumen inicial`
