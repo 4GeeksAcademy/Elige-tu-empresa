@@ -111,10 +111,31 @@
   - Registrado el comportamiento observado sin reglas de código a partir de los archivos generados por las pruebas.
 - **Archivos:**
   - `memory-bank/registro/pruebas-reglas.md` — prompts y resultados de la línea base
-  - `memory-bank/estado-actual.md` — Paso 06 completado; Paso 20 pendiente de commit y Paso 07 después
+  - `memory-bank/estado-actual.md` — Paso 06 completado y Paso 07 como siguiente tras cerrar el Paso 20 pendiente
   - `memory-bank/historial-commits.md` — bitácora del paso
 - **Reglas aplicadas:** 00-commits-y-bitacora
-- **Decisiones y pendientes:** los tres archivos generados por las pruebas se conservan por decisión del usuario; el Paso 20 sigue pendiente de su propio commit.
+- **Decisiones y pendientes:** los tres archivos generados por las pruebas se conservan por decisión del usuario; el Paso 20 se cerró después en un commit independiente.
 - **Desviaciones evitadas:** se excluyeron del commit los artefactos y cambios del Paso 20
 - **Cambios respecto al plan:** ninguno
 - **Commit:** `test(rules): registrar línea base de reglas`
+
+## Paso 20 — Solicitudes adicionales de archivos de ejemplo
+- **Fecha:** 2026-10-26
+- **Modo:** Agent
+- **Checklist:** NC-01, NC-02, NC-03 · **Criterios:** —
+- **Qué se hizo:**
+  - Añadido `demo-importer.py` en la raíz; procesa CSV con rutas de entrada/salida, limpia valores y normaliza encabezados.
+  - Añadida una guía breve en inglés en `docs/idioma-prueba/README.md`, sin versión en español.
+  - Añadida `formatLabel` a `shared/format-label.ts`; separa camelCase y guiones o guiones bajos, y capitaliza las palabras.
+- **Archivos:**
+  - `demo-importer.py` — ejemplo ETL de CSV
+  - `docs/idioma-prueba/README.md` — guía breve en inglés
+  - `shared/format-label.ts` — función TypeScript reutilizable
+  - `memory-bank/encargo.md` — checklist y paso 20 añadidos para las solicitudes
+  - `memory-bank/estado-actual.md` — Paso 20 completado y Paso 07 como siguiente
+  - `memory-bank/historial-commits.md` — registro de este paso
+- **Reglas aplicadas:** 00-commits-y-bitacora
+- **Decisiones y pendientes:** el ejemplo ETL usa solo la biblioteca estándar de Python; `tsc` no está instalado, por lo que no se ejecutó la comprobación TypeScript. Los archivos de prueba se conservan por decisión del usuario.
+- **Desviaciones evitadas:** ninguna
+- **Cambios respecto al plan:** paso adicional solicitado por el usuario, realizado antes del paso 06.
+- **Commit:** `feat(examples): añadir importador, guía y formateador`

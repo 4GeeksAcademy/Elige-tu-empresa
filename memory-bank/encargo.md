@@ -63,6 +63,9 @@ Estos IDs se usan en los commits y en la bitácora.
 | EN2 | Incluir en el PR las discrepancias entre el resumen inicial y el repo |
 | EN3 | Incluir en el PR las reglas definidas y la evidencia del código de la que sale cada una |
 | EN4 | Incluir en el PR la propuesta de mejora registrada sin aplicar |
+| NC-01 | Crear `demo-importer.py` en la raíz, sin subcarpeta ni README |
+| NC-02 | Crear una guía breve en inglés en `docs/idioma-prueba/README.md`, sin versión en español |
+| NC-03 | Crear `formatLabel` en `shared/format-label.ts`, sin colocarla en `packages/` |
 
 #### Criterios de evaluación
 
@@ -103,6 +106,7 @@ Estos IDs se usan en los commits y en la bitácora.
 | 17 | Agent | Verificación de principio a fin | V1 |
 | 18 | Agent | Cierre de la memoria | BM4 |
 | 19 | Agent | Auditoría y PR | EN1–EN4, V3 · C01–C15 |
+| 20 | Agent | Solicitudes adicionales de archivos de ejemplo | NC-01–NC-03 |
 
 #### Paso 01 — Arranque
 
@@ -328,3 +332,9 @@ Actualiza:
 
    Si `gh` no está disponible o falla, dame el texto y abro yo el PR.
 7. **No hagas merge.**
+
+#### Paso 20 — Solicitudes adicionales de archivos de ejemplo
+
+1. Crea `demo-importer.py` en la raíz. El ejemplo ETL procesa un CSV con rutas de entrada y salida indicadas como argumentos.
+2. Crea `docs/idioma-prueba/README.md` como guía breve escrita en inglés, sin versión en español.
+3. Crea `shared/format-label.ts` con una función reutilizable `formatLabel` que separa camelCase y guiones o guiones bajos, y capitaliza las palabras. No la coloques en `packages/`.

@@ -9,12 +9,13 @@
 - Paso 04: resumen inicial contrastado con el repo; discrepancias en `memory-bank/registro/discrepancias.md`.
 - Paso 05: seis convenciones evaluadas y propuesta de mejora documentada sin aplicarla.
 - Paso 06: pruebas diseñadas y línea base de NC-01–NC-03 registrada.
+- Paso 20: ejemplos adicionales NC-01–NC-03 implementados.
 
 ## En curso
 - —
 
 ## Siguiente
-- Paso 07: escribir las reglas después de cerrar el commit pendiente del Paso 20.
+- Paso 07: escribir las reglas NC-01, NC-02 y NC-03.
 
 ## Estado del proyecto
 - El gestor de incidencias no existe todavía.
