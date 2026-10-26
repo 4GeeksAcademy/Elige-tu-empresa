@@ -82,3 +82,22 @@
 - **Desviaciones evitadas:** ninguna
 - **Cambios respecto al plan:** ninguno
 - **Commit:** `docs(memory-bank): registrar discrepancias del resumen inicial`
+
+## Paso 05 — Convenciones y propuestas de mejora
+- **Fecha:** 2026-10-26
+- **Modo:** Agent
+- **Checklist:** RC4, RC5 · **Criterios:** —
+- **Qué se hizo:**
+  - Documentadas seis observaciones sobre estructura, documentación bilingüe, separación de paquetes, skills, dependencias y pruebas/estilo.
+  - Cuantificada la evidencia y registradas las excepciones; solo tres convenciones tienen base suficiente para convertirse en reglas.
+  - Propuesta la definición de exclusiones en `.gitignore`, sin modificarlo.
+- **Archivos:**
+  - `memory-bank/registro/convenciones.md` — evidencia, excepciones y decisión de convertir cada observación en regla
+  - `memory-bank/registro/propuestas-mejora.md` — mejora propuesta, beneficio, coste y estado
+  - `memory-bank/estado-actual.md` — Paso 05 completado y Paso 06 como siguiente
+  - `memory-bank/historial-commits.md` — bitácora del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora
+- **Decisiones y pendientes:** no se infirieron convenciones de dependencias, estilo o pruebas a partir de ejemplos aislados.
+- **Desviaciones evitadas:** ninguna
+- **Cambios respecto al plan:** ninguno
+- **Commit:** `docs(memory-bank): registrar convenciones y propuestas`

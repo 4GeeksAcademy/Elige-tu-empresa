@@ -7,12 +7,13 @@
 - Paso 02: resumen inicial guardado en `memory-bank/registro/resumen-inicial-agente.md`.
 - Paso 03: entorno revisado; hallazgos en `memory-bank/registro/hallazgos-entorno.md`.
 - Paso 04: resumen inicial contrastado con el repo; discrepancias en `memory-bank/registro/discrepancias.md`.
+- Paso 05: seis convenciones evaluadas y propuesta de mejora documentada sin aplicarla.
 
 ## En curso
 - —
 
 ## Siguiente
-- Paso 05: identificar convenciones y registrar propuestas de mejora.
+- Paso 06: diseñar pruebas de reglas y obtener la línea base en un chat nuevo.
 
 ## Estado del proyecto
 - El gestor de incidencias no existe todavía.
