@@ -101,3 +101,20 @@
 - **Desviaciones evitadas:** ninguna
 - **Cambios respecto al plan:** ninguno
 - **Commit:** `docs(memory-bank): registrar convenciones y propuestas`
+
+## Paso 06 — Pruebas de reglas: diseño y línea base
+- **Fecha:** 2026-10-26
+- **Modo:** Agent + chat nuevo
+- **Checklist:** RG5 · **Criterios:** —
+- **Qué se hizo:**
+  - Diseñadas tres pruebas con prompts exactos y comportamiento esperado para NC-01, NC-02 y NC-03.
+  - Registrado el comportamiento observado sin reglas de código a partir de los archivos generados por las pruebas.
+- **Archivos:**
+  - `memory-bank/registro/pruebas-reglas.md` — prompts y resultados de la línea base
+  - `memory-bank/estado-actual.md` — Paso 06 completado; Paso 20 pendiente de commit y Paso 07 después
+  - `memory-bank/historial-commits.md` — bitácora del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora
+- **Decisiones y pendientes:** los tres archivos generados por las pruebas se conservan por decisión del usuario; el Paso 20 sigue pendiente de su propio commit.
+- **Desviaciones evitadas:** se excluyeron del commit los artefactos y cambios del Paso 20
+- **Cambios respecto al plan:** ninguno
+- **Commit:** `test(rules): registrar línea base de reglas`

@@ -8,12 +8,13 @@
 - Paso 03: entorno revisado; hallazgos en `memory-bank/registro/hallazgos-entorno.md`.
 - Paso 04: resumen inicial contrastado con el repo; discrepancias en `memory-bank/registro/discrepancias.md`.
 - Paso 05: seis convenciones evaluadas y propuesta de mejora documentada sin aplicarla.
+- Paso 06: pruebas diseñadas y línea base de NC-01–NC-03 registrada.
 
 ## En curso
 - —
 
 ## Siguiente
-- Paso 06: diseñar pruebas de reglas y obtener la línea base en un chat nuevo.
+- Paso 07: escribir las reglas después de cerrar el commit pendiente del Paso 20.
 
 ## Estado del proyecto
 - El gestor de incidencias no existe todavía.
