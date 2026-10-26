@@ -10,12 +10,13 @@
 - Paso 05: seis convenciones evaluadas y propuesta de mejora documentada sin aplicarla.
 - Paso 06: pruebas diseñadas y línea base de NC-01–NC-03 registrada.
 - Paso 20: ejemplos adicionales NC-01–NC-03 implementados.
+- Paso 07: reglas NC-01, NC-02 y NC-03 incorporadas en el commit `c3e6e02`.
 
 ## En curso
-- Paso 07: reglas NC-01, NC-02 y NC-03 redactadas; pendiente `OK commit`.
+- Paso 08a: pruebas con un subagente en una copia aislada ejecutadas y registradas; cambios de prueba deshechos. Pendiente `OK commit` del registro.
 
 ## Siguiente
-- Paso 08: repetir las pruebas en un chat nuevo con las reglas cargadas.
+- Completar la validación del Paso 08: resolver la diferencia entre detenerse ante el conflicto y crear los archivos según las convenciones. La ejecución con subagente no confirma *References* ni sustituye tres chats independientes.
 
 ## Estado del proyecto
 - El gestor de incidencias no existe todavía.

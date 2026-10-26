@@ -160,3 +160,22 @@
 - **Desviaciones evitadas:** ninguna
 - **Cambios respecto al plan:** ninguno
 - **Commit:** `docs(rules): añadir reglas para componentes y reutilización`
+
+## Paso 08a — Probar las reglas con un subagente
+- **Fecha:** 2026-10-26
+- **Modo:** Agent + subagente
+- **Checklist:** RG5 · **Criterios:** —
+- **Qué se hizo:**
+  - Creado un worktree aislado del commit `c3e6e02` y retirados allí los tres ejemplos para probar las solicitudes sin archivos preexistentes.
+  - Ejecutados los tres prompts en un subagente: no creó archivos y señaló los conflictos con las reglas 01, 02 y 03.
+  - Contrastado el resultado con la línea base, sin presentarlo como cumplimiento del resultado esperado ni como tres chats independientes.
+  - Restaurados los tres archivos de preparación, comprobado el estado limpio y retirado el worktree de prueba.
+- **Archivos:**
+  - `memory-bank/registro/pruebas-reglas.md` — resultados con reglas, evidencia y limitaciones
+  - `memory-bank/estado-actual.md` — Paso 07 confirmado por Git y Paso 08a pendiente de commit
+  - `memory-bank/historial-commits.md` — registro de esta ronda
+- **Reglas aplicadas:** 00-commits-y-bitacora; el subagente informó aplicar 01-componentes-por-responsabilidad, 02-guias-bilingues y 03-paquetes-y-recursos-compartidos
+- **Decisiones y pendientes:** no se ajustaron reglas. Pendiente resolver si detenerse ante las solicitudes contradictorias satisface la prueba; *References* no es verificable desde este subagente.
+- **Desviaciones evitadas:** el subagente no creó componentes en raíz, guías monolingües ni código reutilizable en `shared/`; tampoco creó las alternativas esperadas.
+- **Cambios respecto al plan:** por solicitud del usuario, se usó un único subagente en una copia aislada en lugar de tres chats nuevos; se deshicieron todos los cambios de prueba sin alterar los ejemplos originales.
+- **Commit:** `test(rules): registrar pruebas aisladas con subagente`
