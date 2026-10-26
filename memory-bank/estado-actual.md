@@ -12,10 +12,10 @@
 - Paso 20: ejemplos adicionales NC-01–NC-03 implementados.
 
 ## En curso
-- —
+- Paso 07: reglas NC-01, NC-02 y NC-03 redactadas; pendiente `OK commit`.
 
 ## Siguiente
-- Paso 07: escribir las reglas NC-01, NC-02 y NC-03.
+- Paso 08: repetir las pruebas en un chat nuevo con las reglas cargadas.
 
 ## Estado del proyecto
 - El gestor de incidencias no existe todavía.

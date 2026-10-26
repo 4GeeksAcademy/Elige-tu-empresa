@@ -139,3 +139,24 @@
 - **Desviaciones evitadas:** ninguna
 - **Cambios respecto al plan:** paso adicional solicitado por el usuario, realizado antes del paso 06.
 - **Commit:** `feat(examples): añadir importador, guía y formateador`
+
+## Paso 07 — Escribir las reglas
+- **Fecha:** 2026-10-26
+- **Modo:** Agent
+- **Checklist:** RG1–RG4 · **Criterios:** C01–C03
+- **Qué se hizo:**
+  - Creada una regla con `origen: codigo` para ubicar y documentar componentes en su área responsable.
+  - Creada una regla con `origen: codigo` para mantener guías de carpeta en español e inglés.
+  - Creada una regla con `origen: codigo` para separar paquetes reutilizables de recursos compartidos no empaquetados.
+  - Asociada cada regla con su prueba NC-01, NC-02 o NC-03 del Paso 06.
+- **Archivos:**
+  - `.agents/rules/01-componentes-por-responsabilidad.md` — ubicación y documentación de componentes
+  - `.agents/rules/02-guias-bilingues.md` — guías de carpeta en dos idiomas
+  - `.agents/rules/03-paquetes-y-recursos-compartidos.md` — separación de paquetes y recursos
+  - `memory-bank/estado-actual.md` — Paso 07 pendiente de commit y Paso 08 como siguiente
+  - `memory-bank/historial-commits.md` — bitácora del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora
+- **Decisiones y pendientes:** NC-02 usa `applyTo: "**/README*.md"`; la única excepción explícita es no traducir retroactivamente `memory-bank/README.md`. Las pruebas con reglas quedan para el Paso 08.
+- **Desviaciones evitadas:** ninguna
+- **Cambios respecto al plan:** ninguno
+- **Commit:** `docs(rules): añadir reglas para componentes y reutilización`
