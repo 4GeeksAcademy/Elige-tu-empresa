@@ -179,3 +179,20 @@
 - **Desviaciones evitadas:** el subagente no creó componentes en raíz, guías monolingües ni código reutilizable en `shared/`; tampoco creó las alternativas esperadas.
 - **Cambios respecto al plan:** por solicitud del usuario, se usó un único subagente en una copia aislada en lugar de tres chats nuevos; se deshicieron todos los cambios de prueba sin alterar los ejemplos originales.
 - **Commit:** `test(rules): registrar pruebas aisladas con subagente`
+
+## Paso 08b — Registrar la aceptación de las pruebas
+- **Fecha:** 2026-10-26
+- **Modo:** Agent
+- **Checklist:** RG5 · **Criterios:** —
+- **Qué se hizo:**
+  - Registrada la confirmación del usuario: detenerse ante el conflicto satisface el criterio de las pruebas.
+  - Cerrado el Paso 08 sin ajustar las reglas ni repetir las pruebas; conservados los límites de la ejecución con subagente.
+- **Archivos:**
+  - `memory-bank/registro/pruebas-reglas.md` — aceptación del resultado
+  - `memory-bank/estado-actual.md` — Paso 08 completado y Paso 09 como siguiente
+  - `memory-bank/historial-commits.md` — registro del cierre
+- **Reglas aplicadas:** 00-commits-y-bitacora
+- **Decisiones y pendientes:** resultado aceptado por el usuario; la prueba no confirma *References* ni equivale a tres chats independientes.
+- **Desviaciones evitadas:** ninguna nueva; no se ejecutaron pruebas adicionales.
+- **Cambios respecto al plan:** se acepta la detención ante el conflicto en lugar de exigir la creación de las alternativas esperadas.
+- **Commit:** `docs(memory-bank): registrar validación de las pruebas de reglas`

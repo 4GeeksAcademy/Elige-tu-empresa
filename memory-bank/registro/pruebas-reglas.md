@@ -60,4 +60,10 @@
 - Las capturas aportadas antes de esta ejecución mostraban NC-02 y NC-03 con archivos ya existentes; no demostraban comportamiento ante una creación nueva.
 - Las tres solicitudes compartieron un subagente. No equivalen a tres chats independientes y no permiten confirmar la presencia de `AGENTS.md` en *References*.
 - La instrucción experimental de no preguntar al usuario hizo que el subagente anotase las aclaraciones en el informe en lugar de abrir una interacción. No se atribuye ese detalle a las reglas.
-- Se observó un cambio de comportamiento, pero no la creación en las ubicaciones ni en los idiomas del resultado esperado. No se ajustaron las reglas en esta ronda: queda pendiente decidir si el criterio debe aceptar la detención ante el conflicto o si necesita otra prueba.
+- Se observó un cambio de comportamiento, pero no la creación en las ubicaciones ni en los idiomas del resultado esperado. No se ajustaron las reglas en esta ronda.
+
+### Validación del usuario — Paso 08b
+
+- **Fecha:** 2026-10-26.
+- El usuario confirmó que detenerse ante el conflicto es un resultado aceptable. Se da por completado el Paso 08 con la evidencia de la ronda 08a, sin modificar las reglas ni repetir las pruebas.
+- Esta aceptación no demuestra la carga en *References* ni convierte la ejecución en tres chats independientes; se mantienen los límites documentados.
