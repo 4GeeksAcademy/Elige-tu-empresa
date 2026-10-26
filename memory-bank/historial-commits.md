@@ -41,3 +41,26 @@
 - **Desviaciones evitadas:** ninguna
 - **Cambios respecto al plan:** ninguno
 - **Commit:** `docs(memory-bank): guardar el resumen inicial del agente`
+
+## Paso 03 — Levantar el entorno
+- **Fecha:** 2026-10-26
+- **Modo:** Agent
+- **Checklist:** E2 · **Criterios:** —
+- **Qué se hizo:**
+  - Revisado solo lo que documenta el repo: README, `.devcontainer/`, `packages/shared/package.json` y el script de pandas.
+  - Ejecutado `bash .devcontainer/post-create.sh`: falla (`corepack` y `pip` no existen en este entorno Alpine); no se llegó a `uv sync`.
+  - Comprobado que no hay lint, tests ni arranque configurados.
+  - Registrados 10 hallazgos no documentados, con candidatos a regla y a propuesta de mejora.
+  - Reintento del 2026-10-26: `ensurepip --user` fue bloqueado por PEP 668; se creó `$HOME/.venvs/brasaland` y se instalaron allí `pip` 26.2.2 y `uv` 0.13.5.
+  - Con autorización del usuario, añadido `pyproject.toml` mínimo para que `uv sync` prepare un entorno vacío sin empaquetar la aplicación. El comando generó `uv.lock`.
+  - Reejecutado `post-create.sh` con los entornos en `$HOME`: terminó correctamente con `Devcontainer setup complete.`; `corepack` sigue ausente, pero sus errores se ignoran.
+- **Archivos:**
+  - `pyproject.toml` y `uv.lock` — entorno base de Python gestionado por `uv`, sin dependencias de aplicación
+  - `memory-bank/registro/hallazgos-entorno.md` — comandos y resultados del entorno
+  - `memory-bank/estado-actual.md` — decisiones y pendientes actualizados
+  - `memory-bank/historial-commits.md` — bitácora del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora
+- **Decisiones y pendientes:** se autorizó un manifiesto Python mínimo para permitir `uv sync`; el entorno queda vacío y no configura Docker. Pendiente: decidir el stack de ejecución del gestor y sus dependencias de aplicación.
+- **Desviaciones evitadas:** ninguna
+- **Cambios respecto al plan:** ninguno
+- **Commit:** `chore(env): habilitar sincronización base con uv`
