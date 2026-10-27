@@ -215,3 +215,21 @@
 - **Desviaciones evitadas:** no se convirtieron los medios de comunicación del briefing en canales aprobados ni se inventaron estados o severidades.
 - **Cambios respecto al plan:** ninguno
 - **Commit:** `docs(memory-bank): documentar contexto de producto de Brasaland`
+
+## Paso 10 — Documentar el stack tecnológico y el estado del proyecto
+- **Fecha:** 2026-10-27
+- **Modo:** Agent
+- **Checklist:** BM1, BM4 · **Criterios:** C04, C14
+- **Qué se hizo:**
+  - Documentadas la estructura del monorepo, las dependencias existentes y los comandos disponibles.
+  - Registrada la ausencia de aplicación de incidencias, persistencia y comandos globales de lint, pruebas y arranque.
+  - Actualizados el estado actual y las decisiones técnicas pendientes.
+- **Archivos:**
+  - `memory-bank/stack-tecnologico.md` — descripción del stack existente, las responsabilidades y los límites conocidos
+  - `memory-bank/estado-actual.md` — estado del proyecto, decisiones y siguiente paso
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora; reglas 01–03 enlazadas como referencias
+- **Decisiones y pendientes:** no se eligieron framework, base de datos, Docker ni dependencias de aplicación; sigue pendiente validar los catálogos del Paso 09.
+- **Desviaciones evitadas:** no se añadieron herramientas ni se infirió configuración no comprobada; `uv.lock` quedó sin inspeccionar por restricción de contenido.
+- **Cambios respecto al plan:** ninguno
+- **Commit:** `docs(memory-bank): documentar stack tecnologico y estado actual`
