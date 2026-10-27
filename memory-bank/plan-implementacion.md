@@ -19,6 +19,7 @@ Se usan exclusivamente los catálogos y los identificadores validados en [contex
 | Autor | Nombre manual obligatorio al crear una incidencia y en cada cambio; no se añade autenticación. El nombre no se verifica contra una identidad externa. |
 | Marcas temporales | Guardar en UTC y mostrar en la zona horaria local del navegador |
 | Pruebas | `unittest` y biblioteca estándar, sin incorporar runner o framework de pruebas |
+| IDs | UUID v4 en texto para incidencias y eventos de historial |
 
 ## Componentes y ubicación
 
@@ -91,7 +92,6 @@ Cada paso se implementa en un commit separado, con sus IDs en el asunto/cuerpo s
 ## Decisiones por resolver antes de implementarlas
 
 - Comprobar el patrón del repositorio para declarar dependencias con `uv` y elegir el manifiesto apropiado para FastAPI; no añadir dependencias aparte de FastAPI sin autorización adicional.
-- Comprobar si existe un precedente para el formato de identificadores de incidencias y eventos. Si no existe, confirmar la elección antes de fijar el formato.
 - Docker y despliegue no están incluidos en el alcance aprobado; no configurarlos como parte de estos pasos.
 
 ## Fuera de alcance

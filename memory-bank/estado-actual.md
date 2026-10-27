@@ -14,17 +14,18 @@
 - Paso 08: pruebas con subagente registradas en `d354891`; el usuario acepta detenerse ante el conflicto como resultado válido. Reglas conservadas sin ajustes.
 - Paso 09: contexto de producto documentado y catálogos validados por el usuario en la ronda 09b.
 - Paso 10: stack tecnológico y estructura actual del repositorio documentados.
-- Paso 11: plan de implementación versión 1 aprobado y documentado en `memory-bank/plan-implementacion.md`.
+- Paso 11: plan de implementación versión 1 aprobado y guardado en `7419deb`.
+- Paso 12: catálogos aprobados, modelos UUID v4, restricciones SQLite y eventos inmutables implementados; 12 pruebas pasan.
 
 ## En curso
-- Paso 11: plan versión 1 preparado; pendiente `OK commit`.
+- Paso 12: cambios listos para revisión; pendiente `OK commit`.
 
 ## Siguiente
-- Tras cerrar el Paso 11, continuar con el Paso 12: catálogos, modelo de datos y persistencia.
+- Tras cerrar el Paso 12, continuar con el Paso 13: registro de incidencias y asignación a un área.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
-- El gestor de incidencias, su API, su interfaz y su persistencia aún no están implementados. El stack y la arquitectura quedaron definidos en el plan versión 1.
+- El servicio tiene catálogos, modelos y esquema de persistencia SQLite; aún no expone endpoints ni incluye una interfaz de backoffice.
 - No hay comandos globales configurados para lint, pruebas o arranque de una aplicación.
 
 ## Decisiones cerradas
@@ -35,6 +36,7 @@
 | 2026-10-27 | 09b | Catálogos validados: seis áreas asignables, Dirección Ejecutiva de consulta, tres canales manuales, tipos, severidades, estados y IDs `camelCase` ASCII |
 | 2026-10-27 | 10 | El monorepo no configura un workspace pnpm raíz ni comandos globales de lint, pruebas o arranque; el stack de aplicación y la persistencia no están elegidos |
 | 2026-10-27 | 11 | UI estática en `uis/backoffice/`, API central FastAPI en `services/`, SQLite estándar, autor manual sin autenticación, fechas UTC mostradas en zona local del navegador; «abierta» incluye `nueva`, `enCurso` y `resuelta` |
+| 2026-10-27 | 12 | Los IDs de incidencias y eventos usan UUID v4 en texto; los catálogos aprobados y seis áreas asignables se aplican también en SQLite; historial append-only protegido por triggers |
 
 ## Pendientes
-- Antes del Paso 12, comprobar el patrón de manifiestos `uv` para declarar FastAPI y confirmar el formato de IDs de incidencias/eventos si no existe un precedente.
+- Antes de añadir FastAPI en el Paso 13, resolver cómo actualizar dependencias con `uv`: `uv.lock` está excluido por la política de contenido y no se inspeccionó.

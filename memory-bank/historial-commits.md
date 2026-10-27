@@ -271,3 +271,28 @@
 - **Desviaciones evitadas:** no se eligieron dependencias adicionales, autenticación ni una zona horaria fija; no se tocó el remoto ni archivos ajenos al paso.
 - **Cambios respecto al plan:** ninguno
 - **Commit:** `docs(memory-bank): versionar plan del gestor`
+
+## Paso 12 — Crear catálogos, modelos y persistencia
+- **Fecha:** 2026-10-27
+- **Modo:** Agent
+- **Checklist:** C13, C14
+- **Qué se hizo:**
+  - Implementados catálogos con las etiquetas e IDs validados y la restricción de Dirección Ejecutiva como área no asignable.
+  - Añadidos modelos de incidencia e historial con IDs UUID v4 y marcas temporales UTC.
+  - Creado el esquema SQLite con validación de catálogos, claves foráneas e inmutabilidad de eventos de historial.
+  - Añadidas pruebas estándar para valores de dominio, UUID, fechas, persistencia entre conexiones, restricciones, claves foráneas y eventos append-only.
+- **Archivos:**
+  - `services/api/catalogs.py` — catálogos aprobados
+  - `services/api/models.py` — modelos de dominio y utilidades UUID/UTC
+  - `services/api/database.py` — conexión y esquema SQLite
+  - `services/api/tests/test_database.py` — pruebas del modelo y persistencia
+  - `services/api/README.es.md`, `services/api/README.md` — documentación bilingüe del servicio
+  - `services/api/__init__.py`, `services/api/tests/__init__.py` — paquetes Python
+  - `memory-bank/plan-implementacion.md` — decisión de UUID v4 concretada tras confirmación del usuario
+  - `memory-bank/estado-actual.md` — estado y siguiente paso
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 02-guias-bilingues, 03-paquetes-y-recursos-compartidos, 04-nombres-camel-case.
+- **Decisiones y pendientes:** UUID v4 en texto confirmado por el usuario para incidencias y eventos. FastAPI está autorizada pero no se incorporó en esta porción, que no expone endpoints; `uv.lock` no pudo inspeccionarse por la política de exclusión de contenido.
+- **Desviaciones evitadas:** no se asigna Dirección Ejecutiva; no se introdujeron dependencias de persistencia o de pruebas; no se intentó leer `uv.lock` por otra vía.
+- **Cambios respecto al plan:** se concretó el formato de IDs pendiente en la versión 1: UUID v4, confirmado por el usuario.
+- **Commit:** `feat(incidents): añadir modelo y persistencia sqlite`
