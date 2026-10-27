@@ -123,6 +123,40 @@ def _incidentFromRow(row: sqlite3.Row) -> Incident:
     )
 
 
+def listIncidents(
+    connection: sqlite3.Connection,
+    statusId: str | None = None,
+    severityId: str | None = None,
+    responsibleAreaId: str | None = None,
+) -> tuple[Incident, ...]:
+    """Return incidents newest first, optionally filtered by approved catalogs."""
+    filters = (
+        ("statusId", statusId, "statuses", False),
+        ("severityId", severityId, "severities", False),
+        ("responsibleAreaId", responsibleAreaId, "responsibleAreas", True),
+    )
+    conditions = []
+    parameters = []
+    for fieldName, value, catalogName, assignableOnly in filters:
+        if value is not None:
+            _requireCatalogValue(
+                fieldName,
+                value,
+                catalogName,
+                assignableOnly=assignableOnly,
+            )
+            conditions.append(f"{fieldName} = ?")
+            parameters.append(value)
+
+    query = "SELECT * FROM incidents"
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY createdAt DESC, rowid DESC"
+
+    rows = connection.execute(query, parameters).fetchall()
+    return tuple(_incidentFromRow(row) for row in rows)
+
+
 def _recordIncidentChange(
     connection: sqlite3.Connection,
     incidentId: str,

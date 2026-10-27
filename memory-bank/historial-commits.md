@@ -339,3 +339,25 @@
 - **Desviaciones evitadas:** ninguna.
 - **Cambios respecto al plan:** ninguno en el comportamiento de dominio; la exposición HTTP continúa pospuesta conforme a la restricción registrada en el Paso 13.
 - **Commit:** `feat(incidents): trazar cambios y consultar ficha`
+
+## Paso 15 — Listar incidencias con filtros
+- **Fecha:** 2026-10-27
+- **Modo:** Agent
+- **Checklist:** implementación por porciones · **Criterios:** C11
+- **Qué se hizo:**
+  - Añadido `listIncidents`, con filtros opcionales por estado, severidad y área responsable; los valores se validan contra los catálogos aprobados.
+  - Los filtros se pueden combinar; el listado devuelve primero las incidencias más recientes y usa el orden de inserción para desempatar.
+  - Añadidas pruebas para cada filtro, combinación de filtros y rechazo de valores desconocidos o áreas no asignables.
+  - Actualizadas las guías bilingües del servicio.
+  - Sincronizado el estado del Paso 14 con su commit `99ba6b1`; la entrada anterior había dejado el estado como pendiente tras el commit.
+- **Archivos:**
+  - `services/api/incidents.py` — caso de uso de listado y filtros
+  - `services/api/tests/test_incidents.py` — cobertura de filtros y validación de catálogos
+  - `services/api/README.es.md`, `services/api/README.md` — documentación bilingüe del listado
+  - `memory-bank/estado-actual.md` — estado y siguiente paso
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 02-guias-bilingues, 04-nombres-camel-case.
+- **Decisiones y pendientes:** listado sin paginación, ordenado de más reciente a más antiguo; los filtros omitidos no restringen resultados. La exposición HTTP sigue pendiente por la restricción vigente de `uv.lock`.
+- **Desviaciones evitadas:** ninguna.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(incidents): filtrar listado de incidencias`

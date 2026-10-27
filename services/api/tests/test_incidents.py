@@ -5,6 +5,7 @@ from services.api.database import createConnection, initializeDatabase
 from services.api.incidents import (
     changeIncidentStatus,
     getIncidentDetails,
+    listIncidents,
     reassignIncidentArea,
     registerIncident,
 )
@@ -318,6 +319,83 @@ class RegisterIncidentTests(unittest.TestCase):
                 self.connection,
                 "00000000-0000-4000-8000-000000000000",
             )
+
+    def testListsIncidentsWithEachFilterAndCombinedFilters(self) -> None:
+        defaultIncident = self._registerIncident()
+        highSeverityIncident = self._registerIncident(
+            severityId="alta",
+            responsibleAreaId="comprasProveedores",
+        )
+        criticalIncident = self._registerIncident(
+            severityId="critica",
+            responsibleAreaId="operacionesRestaurante",
+        )
+        changeIncidentStatus(
+            self.connection,
+            highSeverityIncident.id,
+            "enCurso",
+            "Operadora",
+        )
+        changeIncidentStatus(
+            self.connection,
+            criticalIncident.id,
+            "enCurso",
+            "Operadora",
+        )
+
+        self.assertEqual(
+            tuple(incident.id for incident in listIncidents(self.connection)),
+            (criticalIncident.id, highSeverityIncident.id, defaultIncident.id),
+        )
+        self.assertEqual(
+            tuple(
+                incident.id
+                for incident in listIncidents(self.connection, statusId="enCurso")
+            ),
+            (criticalIncident.id, highSeverityIncident.id),
+        )
+        self.assertEqual(
+            tuple(
+                incident.id
+                for incident in listIncidents(self.connection, severityId="alta")
+            ),
+            (highSeverityIncident.id,),
+        )
+        self.assertEqual(
+            tuple(
+                incident.id
+                for incident in listIncidents(
+                    self.connection,
+                    responsibleAreaId="operacionesRestaurante",
+                )
+            ),
+            (criticalIncident.id,),
+        )
+        self.assertEqual(
+            tuple(
+                incident.id
+                for incident in listIncidents(
+                    self.connection,
+                    statusId="enCurso",
+                    severityId="alta",
+                    responsibleAreaId="comprasProveedores",
+                )
+            ),
+            (highSeverityIncident.id,),
+        )
+
+    def testIncidentListRejectsFiltersOutsideApprovedCatalogs(self) -> None:
+        invalidFilters = (
+            ("statusId", "unknown"),
+            ("severityId", "urgente"),
+            ("responsibleAreaId", "direccionEjecutiva"),
+            ("responsibleAreaId", "unknown"),
+        )
+
+        for fieldName, value in invalidFilters:
+            with self.subTest(fieldName=fieldName, value=value):
+                with self.assertRaisesRegex(ValueError, fieldName):
+                    listIncidents(self.connection, **{fieldName: value})
 
 
 if __name__ == "__main__":

@@ -17,17 +17,18 @@
 - Paso 11: plan de implementación versión 1 aprobado y guardado en `7419deb`.
 - Paso 12: catálogos aprobados, modelos UUID v4, restricciones SQLite y eventos inmutables implementados en `f7fb380`; 12 pruebas pasan.
 - Paso 13: caso de uso SQLite para registrar incidencias y asignar área implementado en `d568bd7`; 20 pruebas pasan. La ruta HTTP permanece pendiente por la restricción de `uv.lock`.
-- Paso 14: transiciones, historial de cambios de estado/área y consulta de ficha implementados; 27 pruebas pasan.
+- Paso 14: transiciones, historial de cambios de estado/área y consulta de ficha implementados en `99ba6b1`; 27 pruebas pasan.
+- Paso 15: listado con filtros validados por estado, severidad y área responsable implementado; 29 pruebas pasan.
 
 ## En curso
-- Paso 14: cambios listos para revisión; pendiente `OK commit`.
+- Paso 15: cambios listos para revisión; pendiente `OK commit`.
 
 ## Siguiente
-- Tras cerrar el Paso 14, continuar con el Paso 15: listado y filtros; la exposición HTTP sigue pendiente mientras la dependencia FastAPI no pueda gestionarse respetando la exclusión.
+- Tras cerrar el Paso 15, continuar con el Paso 16: volumen de incidencias abiertas por severidad; la exposición HTTP sigue pendiente mientras la dependencia FastAPI no pueda gestionarse respetando la exclusión.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
-- El servicio tiene catálogos, modelos, esquema SQLite y casos de uso para registro, cambios trazables y consulta de ficha. Aún no expone endpoints HTTP ni incluye una interfaz de backoffice.
+- El servicio tiene catálogos, modelos, esquema SQLite y casos de uso para registro, cambios trazables, consulta de ficha y listado filtrable. Aún no expone endpoints HTTP ni incluye una interfaz de backoffice.
 - No hay comandos globales configurados para lint, pruebas o arranque de una aplicación.
 
 ## Decisiones cerradas
