@@ -361,3 +361,25 @@
 - **Desviaciones evitadas:** ninguna.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(incidents): filtrar listado de incidencias`
+
+## Paso 16 — Resumir incidencias abiertas por severidad
+- **Fecha:** 2026-10-27
+- **Modo:** Agent
+- **Checklist:** implementación por porciones · **Criterios:** C12
+- **Qué se hizo:**
+  - Añadido `getOpenIncidentCountsBySeverity`, que agrupa por severidad las incidencias en `nueva`, `enCurso` y `resuelta`.
+  - El resultado incluye todas las severidades del catálogo validado, con cero para las que no tienen incidencias abiertas.
+  - Añadidas pruebas para un conjunto vacío, el recuento en estados abiertos y la exclusión de incidencias cerradas.
+  - Actualizadas las guías bilingües del servicio.
+  - Sincronizado el estado del Paso 15 con su commit `e88b8ce`.
+- **Archivos:**
+  - `services/api/incidents.py` — caso de uso de resumen por severidad
+  - `services/api/tests/test_incidents.py` — pruebas de recuento y estados abiertos
+  - `services/api/README.es.md`, `services/api/README.md` — documentación bilingüe del resumen
+  - `memory-bank/estado-actual.md` — estado y siguiente paso
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 02-guias-bilingues, 04-nombres-camel-case.
+- **Decisiones y pendientes:** «abiertas» incluye `nueva`, `enCurso` y `resuelta`, tal como está aprobado en `plan-implementacion.md`; `cerrada` se excluye. La exposición HTTP sigue pendiente por la restricción vigente de `uv.lock`.
+- **Desviaciones evitadas:** ninguna.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(incidents): resumir abiertas por severidad`

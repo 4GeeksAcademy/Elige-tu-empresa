@@ -20,6 +20,7 @@ allowedStatusTransitions = {
     "resuelta": ("cerrada", "enCurso"),
     "cerrada": (),
 }
+openStatusIds = ("nueva", "enCurso", "resuelta")
 
 
 def _requiredText(fieldName: str, value: str) -> str:
@@ -155,6 +156,26 @@ def listIncidents(
 
     rows = connection.execute(query, parameters).fetchall()
     return tuple(_incidentFromRow(row) for row in rows)
+
+
+def getOpenIncidentCountsBySeverity(
+    connection: sqlite3.Connection,
+) -> dict[str, int]:
+    """Return open incident counts for every approved severity, including zeroes."""
+    countsBySeverity = {severityId: 0 for severityId in catalogIds("severities")}
+    placeholders = ", ".join("?" for _ in openStatusIds)
+    rows = connection.execute(
+        f"""
+        SELECT severityId, COUNT(*) AS incidentCount
+        FROM incidents
+        WHERE statusId IN ({placeholders})
+        GROUP BY severityId
+        """,
+        openStatusIds,
+    ).fetchall()
+    for row in rows:
+        countsBySeverity[row["severityId"]] = row["incidentCount"]
+    return countsBySeverity
 
 
 def _recordIncidentChange(

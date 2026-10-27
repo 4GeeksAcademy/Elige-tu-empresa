@@ -5,6 +5,7 @@ from services.api.database import createConnection, initializeDatabase
 from services.api.incidents import (
     changeIncidentStatus,
     getIncidentDetails,
+    getOpenIncidentCountsBySeverity,
     listIncidents,
     reassignIncidentArea,
     registerIncident,
@@ -396,6 +397,50 @@ class RegisterIncidentTests(unittest.TestCase):
             with self.subTest(fieldName=fieldName, value=value):
                 with self.assertRaisesRegex(ValueError, fieldName):
                     listIncidents(self.connection, **{fieldName: value})
+
+    def testOpenIncidentCountsIncludeEverySeverityAndExcludeClosedIncidents(self) -> None:
+        self.assertEqual(
+            getOpenIncidentCountsBySeverity(self.connection),
+            {"critica": 0, "alta": 0, "media": 0, "baja": 0},
+        )
+
+        criticalIncident = self._registerIncident(severityId="critica")
+        highIncident = self._registerIncident(severityId="alta")
+        mediumIncident = self._registerIncident(severityId="media")
+        lowIncident = self._registerIncident(severityId="baja")
+        closedIncident = self._registerIncident(severityId="critica")
+
+        for incident in (highIncident, mediumIncident, lowIncident, closedIncident):
+            changeIncidentStatus(
+                self.connection,
+                incident.id,
+                "enCurso",
+                "Operadora",
+            )
+        changeIncidentStatus(
+            self.connection,
+            mediumIncident.id,
+            "resuelta",
+            "Operadora",
+        )
+        for incident in (lowIncident, closedIncident):
+            changeIncidentStatus(
+                self.connection,
+                incident.id,
+                "resuelta",
+                "Operadora",
+            )
+            changeIncidentStatus(
+                self.connection,
+                incident.id,
+                "cerrada",
+                "Operadora",
+            )
+
+        self.assertEqual(
+            getOpenIncidentCountsBySeverity(self.connection),
+            {"critica": 1, "alta": 1, "media": 1, "baja": 0},
+        )
 
 
 if __name__ == "__main__":
