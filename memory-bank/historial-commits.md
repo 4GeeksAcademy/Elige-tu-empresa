@@ -233,3 +233,23 @@
 - **Desviaciones evitadas:** no se añadieron herramientas ni se infirió configuración no comprobada; `uv.lock` quedó sin inspeccionar por restricción de contenido.
 - **Cambios respecto al plan:** ninguno
 - **Commit:** `docs(memory-bank): documentar stack tecnologico y estado actual`
+
+## Paso 09b — Validar el contexto de producto y los catálogos
+- **Fecha:** 2026-10-27
+- **Modo:** Agent
+- **Checklist:** BM2, BM5, RG1–RG4 · **Criterios:** C01–C03, C05, C13
+- **Qué se hizo:**
+  - Validada la propuesta de usuarios y necesidades, las seis áreas asignables y Dirección Ejecutiva como consulta.
+  - Validados WhatsApp, teléfono y email como canales manuales sin integración automática.
+  - Validados tipos, criterios de severidad, estados, transiciones y la convención `camelCase` ASCII para IDs.
+  - Añadida una regla permanente para mantener las convenciones camelCase/PascalCase del código.
+- **Archivos:**
+  - `.agents/rules/04-nombres-camel-case.md` — convención de nombres para código nuevo o renombrado
+  - `memory-bank/contexto-producto.md` — catálogos aprobados, identificadores, orígenes y transiciones
+  - `memory-bank/estado-actual.md` — cierre de la validación del Paso 09 y siguiente paso
+  - `memory-bank/historial-commits.md` — registro de la ronda de validación
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case
+- **Decisiones y pendientes:** valores no literales documentados como derivados y validados por el usuario; permisos, SLA e integraciones automáticas siguen fuera de alcance.
+- **Desviaciones evitadas:** no se atribuyeron al briefing los catálogos que no define; no se renombró código ajeno al alcance de esta tarea.
+- **Cambios respecto al plan:** ronda separada 09b para registrar la validación del usuario.
+- **Commit:** `docs(rules): mantener convenciones camelcase`

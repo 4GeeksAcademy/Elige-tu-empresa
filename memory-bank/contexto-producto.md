@@ -1,6 +1,6 @@
 # Contexto de producto — Brasaland
 
-> Paso 09. Fuente de dominio: `../CONTEXT.md`. Borrador pendiente de validación del usuario; no autoriza catálogos ni código.
+> Paso 09, actualizado en la ronda 09b. Fuente de dominio: `../CONTEXT.md`. Las propuestas derivadas y los catálogos de abajo fueron validados por el usuario; no se presentan como valores literales del briefing.
 
 ## La empresa
 
@@ -18,11 +18,11 @@ Fuente: introducción, «Cómo está organizada la empresa» y «Dónde está la
 El encargo pide centralizar incidencias, clasificarlas, asignarlas y conservar su historial.
 En Brasaland esto debe dar visibilidad sobre problemas de una operación repartida entre dos países y 14 locales, hoy dependiente de WhatsApp, teléfono, email, Excel e informes en papel.
 El briefing describe esos medios y problemas, pero no define un sistema de incidencias ni sus catálogos.
-No se presupone que todos esos medios deban integrarse automáticamente.
+WhatsApp, teléfono y email se validaron como canales de registro manual, sin integración automática.
 
 ## Quién usa el backoffice
 
-Los nombres y funciones son literales de «Cómo está organizada la empresa» y «Los departamentos y sus problemas». Las necesidades del gestor de esta tabla son derivadas y requieren validación; el briefing no asigna permisos.
+Los nombres y funciones son literales de «Cómo está organizada la empresa» y «Los departamentos y sus problemas». Las necesidades del gestor son derivadas y fueron validadas por el usuario; no se definen permisos.
 
 | Persona o rol del briefing | Necesidad propuesta para el gestor |
 |---|---|
@@ -32,7 +32,7 @@ Los nombres y funciones son literales de «Cómo está organizada la empresa» y
 | Ashley Turner, Personas y Cultura | Seguir problemas administrativos y de incorporación de personal |
 | Jake Morrison, Formación y Estándares de Calidad | Seguir problemas de consulta o distribución de recetas y procedimientos |
 | Nicolás Park y el equipo de Tecnología | Gestionar problemas técnicos y su trazabilidad |
-| Mariana Restrepo, Dirección Ejecutiva | Consultar el volumen y la situación de incidencias abiertas |
+| Mariana Restrepo, Dirección Ejecutiva | Consultar el volumen y la situación de incidencias abiertas; no recibe asignaciones |
 
 ## Qué es una incidencia en esta operación
 
@@ -47,8 +47,7 @@ No se asignan nombres a locales: el briefing no ofrece un catálogo de estableci
 
 ## Qué significa «crítica» aquí
 
-**Pendiente.** El briefing no define severidades ni umbrales de impacto.
-Propuesta derivada para validar: considerar crítica una incidencia que impida mantener la operación de un local durante su horario de apertura, por ejemplo una rotura de ingredientes que impida servir pedidos.
+El briefing no define severidades ni umbrales de impacto. Criterio **derivado y validado por el usuario**: una incidencia es crítica si impide que un local opere o atienda clientes durante su horario de apertura; una rotura de ingredientes que impida servir pedidos es un ejemplo.
 La ausencia de registros de ventas por sí sola no demuestra una interrupción y no se clasifica automáticamente como crítica.
 No se fijan plazos, SLA, umbrales económicos ni reglas de escalado.
 
@@ -56,61 +55,83 @@ No se fijan plazos, SLA, umbrales económicos ni reglas de escalado.
 
 ### Áreas responsables
 
-Las etiquetas siguientes son literales de «Cómo está organizada la empresa». Su uso como áreas asignables es derivado y está pendiente de validación.
-Todos los identificadores en código están **pendientes**: no se ha establecido una convención de identificadores de dominio para el gestor.
+Las etiquetas siguientes son literales de «Cómo está organizada la empresa». Su uso como áreas asignables se validó con el usuario para las seis áreas operativas; Dirección Ejecutiva es de consulta y no recibe asignaciones. Los identificadores siguen la convención validada de `camelCase` ASCII, con etiquetas visibles en español.
 
-| Etiqueta exacta | Identificador en código | Origen |
+| Etiqueta exacta | Identificador en código | Asignable | Origen |
 |---|---|---|
-| Operaciones de Restaurante | pendiente | literal: «Cómo está organizada la empresa» |
-| Compras y Proveedores | pendiente | literal: «Cómo está organizada la empresa» |
-| Marketing y Experiencia Digital | pendiente | literal: «Cómo está organizada la empresa» |
-| Personas y Cultura | pendiente | literal: «Cómo está organizada la empresa» |
-| Formación y Estándares de Calidad | pendiente | literal: «Cómo está organizada la empresa» |
-| Tecnología | pendiente | literal: «Cómo está organizada la empresa» |
-| Dirección Ejecutiva | pendiente | literal: «Cómo está organizada la empresa» |
+| Operaciones de Restaurante | `operacionesRestaurante` | Sí | literal: «Cómo está organizada la empresa»; asignabilidad validada por el usuario |
+| Compras y Proveedores | `comprasProveedores` | Sí | literal: «Cómo está organizada la empresa»; asignabilidad validada por el usuario |
+| Marketing y Experiencia Digital | `marketingExperienciaDigital` | Sí | literal: «Cómo está organizada la empresa»; asignabilidad validada por el usuario |
+| Personas y Cultura | `personasCultura` | Sí | literal: «Cómo está organizada la empresa»; asignabilidad validada por el usuario |
+| Formación y Estándares de Calidad | `formacionEstandaresCalidad` | Sí | literal: «Cómo está organizada la empresa»; asignabilidad validada por el usuario |
+| Tecnología | `tecnologia` | Sí | literal: «Cómo está organizada la empresa»; asignabilidad validada por el usuario |
+| Dirección Ejecutiva | `direccionEjecutiva` | No, consulta | literal: «Cómo está organizada la empresa»; uso de consulta validado por el usuario |
 
 ### Canales
 
-El briefing menciona medios de comunicación, pero no define un catálogo de entrada de incidencias. Estos son candidatos, no valores aprobados.
+El briefing menciona estos medios, pero no define un catálogo de entrada de incidencias. Su uso como canales de registro manual se validó por el usuario; no implica integración automática. Los identificadores siguen la convención validada de `camelCase` ASCII.
 
-| Etiqueta del briefing | Identificador en código | Origen de la candidatura |
+| Etiqueta | Identificador en código | Origen |
 |---|---|---|
-| WhatsApp | pendiente | derivado: «Operaciones de restaurante» lo usa para pedidos de ingredientes; no confirma recepción de incidencias |
-| teléfono | pendiente | derivado: «Operaciones de restaurante» lo usa para pedidos; no confirma recepción de incidencias |
-| email | pendiente | derivado: «Compras y proveedores» y «Personas y cultura» lo usan en sus procesos; no confirma recepción de incidencias |
+| WhatsApp | `whatsapp` | derivado y validado: «Operaciones de restaurante» lo usa para pedidos de ingredientes; se adopta como canal manual de registro |
+| teléfono | `telefono` | derivado y validado: «Operaciones de restaurante» lo usa para pedidos; se adopta como canal manual de registro |
+| email | `email` | derivado y validado: «Compras y proveedores» y «Personas y cultura» lo usan en sus procesos; se adopta como canal manual de registro |
 
 ### Tipos, severidades y estados
 
-| Catálogo | Etiquetas | Identificadores en código | Origen |
-|---|---|---|---|
-| Tipos de incidencia | pendiente | pendiente | pendiente: el briefing describe problemas, no una taxonomía de incidencias |
-| Severidades | pendiente | pendiente | pendiente: el briefing no enumera niveles ni criterios |
-| Estados y transiciones | pendiente | pendiente | pendiente: el briefing no define un ciclo de incidencias |
+El briefing describe problemas pero no define una taxonomía de incidencias. Estos tipos se derivan de los problemas descritos y fueron validados por el usuario.
 
-La palabra «crítica» del encargo no basta para inventar el resto de niveles. El requisito de cierre tampoco autoriza a inventar nombres de estados.
+| Tipo de incidencia | Identificador en código | Origen |
+|---|---|---|
+| Operación de Restaurante | `operacionRestaurante` | derivado y validado: «Operaciones de restaurante» describe roturas de stock y falta de registros de ventas |
+| Compras y Proveedores | `comprasProveedores` | derivado y validado: «Compras y proveedores» describe falta de visibilidad de compras y cambios de precios |
+| Marketing y Experiencia Digital | `marketingExperienciaDigital` | derivado y validado: «Marketing y experiencia digital» describe problemas de la web y la app |
+| Personas y Cultura | `personasCultura` | derivado y validado: «Personas y cultura» describe carga administrativa y dificultades de onboarding |
+| Formación y Calidad | `formacionCalidad` | derivado y validado: «Formación y estándares de calidad» describe dificultades con recetas y distribución de actualizaciones |
+| Tecnología | `tecnologia` | derivado y validado: «Tecnología» describe sistemas de punto de venta distintos, ausencia de API e infraestructura digital mínima |
+
+El briefing no enumera niveles de severidad. Se validó la siguiente escala derivada, ligada al impacto descrito en la operación:
+
+| Severidad | Identificador en código | Criterio | Origen |
+|---|---|---|---|
+| Crítica | `critica` | Un local no puede operar o atender clientes durante su horario de apertura | derivado y validado: «Operaciones de restaurante» describe la operación de cada local y roturas de stock; la ausencia de registros de ventas no basta por sí sola |
+| Alta | `alta` | Una función esencial de ventas o pedidos no está disponible, aunque el local pueda seguir atendiendo | derivado y validado: «Operaciones de restaurante» describe pedidos por WhatsApp/teléfono y alertas por falta de registros de ventas |
+| Media | `media` | Un proceso operativo está afectado, pero existe una alternativa manual | derivado y validado: «Operaciones de restaurante», «Compras y proveedores» y «Personas y cultura» describen procesos con WhatsApp, teléfono, email, papel o Excel |
+| Baja | `baja` | No hay interrupción operativa inmediata | derivado y validado: «Dónde está la empresa hoy» y las secciones de departamentos describen brechas de visibilidad y tareas administrativas sin afirmar una interrupción inmediata |
+
+El briefing no define estados ni transiciones. Se validó este flujo derivado del requisito de seguimiento y cierre del encargo:
+
+| Estado | Identificador en código | Transición |
+|---|---|---|
+| Nueva | `nueva` | Estado inicial al registrar |
+| En curso | `enCurso` | Desde Nueva; también desde Resuelta antes del cierre |
+| Resuelta | `resuelta` | Desde En curso |
+| Cerrada | `cerrada` | Desde Resuelta; estado final, sin reapertura |
+
+Los identificadores de tipos, severidades y estados usan `camelCase` ASCII; las etiquetas visibles conservan español y tildes.
 
 ## Glosario de entidades
 
 | Nombre de dominio | Identificador en código | Fuente y estado |
 |---|---|---|
-| Brasaland | pendiente | literal: introducción |
-| Área | pendiente | derivado: organización de la empresa |
-| Local / restaurante | pendiente | literal: introducción y «Operaciones de restaurante»; sin catálogo de nombres |
-| Proveedor | pendiente | literal: «Compras y proveedores»; sin catálogo de nombres |
-| Incidencia | pendiente | requisito del encargo; el briefing no define esta entidad |
-| Evento de historial | pendiente | requisito de trazabilidad del encargo; no es una entidad definida en el briefing |
+| Brasaland | `brasaland` | literal: introducción |
+| Área | `area` | derivado: las áreas se enumeran en «Cómo está organizada la empresa» |
+| Local / restaurante | `restaurante` | literal: introducción y «Operaciones de restaurante»; sin catálogo de nombres |
+| Proveedor | `proveedor` | literal: «Compras y proveedores»; sin catálogo de nombres |
+| Incidencia | `incidencia` | requisito del encargo; el briefing no define esta entidad |
+| Evento de historial | `eventoHistorial` | requisito de trazabilidad del encargo; no es una entidad definida en el briefing |
+
+Los identificadores del glosario usan `camelCase` ASCII según la convención validada por el usuario.
 
 ## Fuera de alcance
 
 - Construir los demás productos solicitados en el briefing: CRM, fidelización, pedidos, RRHH, formación, compras y dashboards de ventas.
-- Integrar automáticamente WhatsApp, correo, telefonía o puntos de venta sin aprobación.
+- Integrar automáticamente WhatsApp, email, teléfono o puntos de venta; los tres primeros son canales manuales, no integraciones.
 - Inventar locales, proveedores, usuarios, permisos, SLA o valores de catálogo.
 - Elegir stack, persistencia o identidad en este paso; corresponden a las siguientes fases del encargo.
 
-## Validación pendiente
+## Validación
 
-- Confirmar usuarios y necesidades propuestas del gestor.
-- Confirmar qué áreas son asignables y qué medios son canales de entrada.
-- Definir tipos, severidades, criterio de «crítica» y estados con sus transiciones.
-- Aprobar la convención de identificadores en código antes de asignarlos.
-- El usuario debe aportar o aprobar explícitamente los valores ausentes del briefing antes de implementarlos.
+- En 2026-10-27, el usuario validó las necesidades propuestas para los roles, seis áreas asignables, Dirección Ejecutiva como consulta, canales manuales, tipos, severidades, criterio de «crítica», estados y transiciones, y la convención `camelCase` ASCII para IDs.
+- Estos valores que no aparecen literalmente en el briefing están marcados como derivados y enlazados con su base y razonamiento.
+- No se definieron permisos, SLA, integraciones, catálogos de locales/proveedores ni tecnologías de implementación.
