@@ -383,3 +383,23 @@
 - **Desviaciones evitadas:** ninguna.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(incidents): resumir abiertas por severidad`
+
+## Paso 17 — Verificar el flujo de incidencias
+- **Fecha:** 2026-10-27
+- **Modo:** Agent
+- **Checklist:** V1
+- **Qué se hizo:**
+  - Ejecutado un recorrido integrado con SQLite temporal: tres canales, clasificación, asignación y reasignación.
+  - Verificados ciclo de estados hasta cierre, rechazo de transición prohibida, ficha e historial con autor y UTC.
+  - Verificados los tres filtros y los conteos por severidad antes y después de cerrar una incidencia.
+  - Registrados los resultados observados en `memory-bank/registro/verificacion.md`.
+  - Sincronizado el estado del Paso 16 con su commit `ffb7701`.
+- **Archivos:**
+  - `memory-bank/registro/verificacion.md` — escenarios, esperados, resultados y limitaciones de alcance
+  - `memory-bank/estado-actual.md` — avance y siguiente paso
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case.
+- **Decisiones y pendientes:** la verificación cubre la capa de casos de uso SQLite. No se ejecutó una interfaz HTTP o backoffice: no hay endpoints todavía y la dependencia FastAPI sigue aplazada por la restricción acordada de `uv.lock`.
+- **Desviaciones evitadas:** ninguna; no se afirmó haber probado una interfaz que aún no existe.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `test(incidents): verificar flujo integrado`
