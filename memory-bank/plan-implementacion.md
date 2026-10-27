@@ -1,7 +1,7 @@
 # Plan de implementación — Gestor centralizado de incidencias
 
-> **Versión 1 · Paso 11 · 2026-10-27**
-> Plan aprobado por el usuario antes de empezar a implementar. Si cambia durante la implementación, actualizar este archivo en el mismo commit que el cambio y registrar el motivo en la bitácora.
+> **Versión 2 · Paso 19a · 2026-10-27**
+> La versión 1 fue aprobada en el Paso 11. Esta versión incorpora el cambio de arquitectura solicitado por el usuario después del Paso 18; su aprobación y registro se hacen antes de implementar el servidor.
 
 ## Objetivo y alcance
 
@@ -14,7 +14,7 @@ Se usan exclusivamente los catálogos y los identificadores validados en [contex
 | Tema | Decisión |
 |---|---|
 | Interfaz | HTML, CSS y JavaScript sin framework, en `uis/backoffice/` |
-| API | API central FastAPI bajo `services/`, siguiendo la recomendación del monorepo. El usuario autorizó añadir FastAPI como dependencia. |
+| API | API JSON en `services/api/`, servida con `http.server` de la biblioteca estándar de Python; no se añade FastAPI ni otra dependencia. |
 | Persistencia | SQLite mediante `sqlite3` de la biblioteca estándar |
 | Autor | Nombre manual obligatorio al crear una incidencia y en cada cambio; no se añade autenticación. El nombre no se verifica contra una identidad externa. |
 | Marcas temporales | Guardar en UTC y mostrar en la zona horaria local del navegador |
@@ -23,10 +23,12 @@ Se usan exclusivamente los catálogos y los identificadores validados en [contex
 
 ## Componentes y ubicación
 
-- `services/api/`: servicio FastAPI central; documentar el componente según las reglas del monorepo.
+- `services/api/`: servicio HTTP JSON de biblioteca estándar; documentar el componente según las reglas del monorepo.
 - `uis/backoffice/`: aplicación interna con interfaz estática; documentar el componente según las reglas del monorepo.
 - Crear guías `README.es.md` y `README.md` equivalentes para cada nuevo componente, de acuerdo con la regla bilingüe.
 - No crear una carpeta de primer nivel ni mover código compartido fuera de las áreas documentadas.
+
+La API estándar servirá los archivos estáticos del backoffice desde el mismo origen. El servidor se limitará por defecto a `127.0.0.1`, y abrirá una conexión SQLite por solicitud.
 
 ## Modelo de datos y trazabilidad
 
@@ -67,11 +69,24 @@ Cada cambio de estado o de área y su evento de historial se guardan en una úni
 - Mostrar un resumen de incidencias abiertas agrupadas por severidad.
 - Formatear las marcas UTC en el navegador para la zona local del usuario.
 
+### Contrato HTTP sin dependencias externas
+
+- `GET /api/catalogs`: devolver los catálogos validados para los controles del backoffice.
+- `GET /api/incidents`: aceptar los filtros opcionales `statusId`, `severityId` y `responsibleAreaId`.
+- `POST /api/incidents`: registrar los campos aprobados y el autor manual.
+- `GET /api/incidents/{id}`: devolver la incidencia y el historial.
+- `PATCH /api/incidents/{id}/status`: aplicar una transición con `statusId` y `author`.
+- `PATCH /api/incidents/{id}/area`: reasignar con `responsibleAreaId` y `author`.
+- `GET /api/incidents/summary/by-severity`: devolver los conteos de incidencias abiertas.
+- La UI HTML/CSS/JavaScript permitirá registrar, filtrar, consultar ficha e historial, cambiar estado/área y visualizar los conteos.
+- El servidor usará solo `http.server`, `json`, `urllib.parse` y demás biblioteca estándar; los datos seguirán pasando por los casos de uso existentes. No habrá CORS ni dependencia de un servicio externo.
+
 ## Pruebas y verificación
 
 - Ejecutar `unittest` con una base SQLite temporal.
 - Comprobar catálogos y validaciones; transiciones válidas y rechazadas; filtros; conteo por severidad; autor, fechas y orden del historial; y atomicidad de la escritura de cambio e historial.
-- Verificar manualmente el recorrido de la interfaz y la comunicación con la API.
+- Probar las rutas HTTP con `unittest`, servidor local y base SQLite temporal; verificar también que la UI estática se sirve por HTTP.
+- Verificar el recorrido de interfaz y API en local, sin datos persistentes de prueba.
 - En el Paso 17, ejecutar el recorrido integral descrito en `encargo.md` y registrar resultados reales en `memory-bank/registro/verificacion.md`.
 
 ## Pasos de implementación
@@ -85,7 +100,9 @@ Cada cambio de estado o de área y su evento de historial se guardan en una úni
 | 16 | Resumen de incidencias abiertas por severidad | C12 |
 | 17 | Verificación de principio a fin y registro de evidencia | V1 |
 | 18 | Cierre y actualización de memoria | BM4 |
-| 19 | Auditoría, descripción del PR y entrega | EN1–EN4, V3; cualquier acción remota requiere autorización explícita |
+| 19a | Actualizar el plan aprobado para usar HTTP estándar sin dependencias | C06, C12, C14 |
+| 19b | Implementar API JSON y backoffice estático; verificar el recorrido HTTP | C06, C08–C14, V1, V2 |
+| 19c | Auditoría y descripción del PR | EN1–EN4, V3; cualquier acción remota requiere autorización explícita |
 
 Cada paso se implementa en un commit separado, con sus IDs en el asunto/cuerpo según la regla 00. Se revisa y valida cada porción antes del commit.
 
@@ -99,20 +116,18 @@ Cada paso se implementa en un commit separado, con sus IDs en el asunto/cuerpo s
 | 15 | Completado en la capa de casos de uso | Listado y filtros; `e88b8ce` |
 | 16 | Completado en la capa de casos de uso | Resumen por severidad; `ffb7701` |
 | 17 | Completado para SQLite | Recorrido integrado registrado en `registro/verificacion.md`; HTTP e interfaz no se verificaron porque no están implementados. |
-| 18 | En revisión | Sincronización de la memoria de cierre. |
-| 19 | Pendiente | Auditoría y descripción del PR; las acciones remotas requieren autorización explícita. |
+| 18 | Completado | Memoria de cierre sincronizada; `efd5492`. |
+| 19a | En revisión | Sustituir la decisión FastAPI por servidor HTTP de biblioteca estándar. |
+| 19b | Pendiente | API JSON y backoffice estático; ejecutar pruebas HTTP integradas. |
+| 19c | Pendiente | Auditoría y descripción del PR; las acciones remotas requieren autorización explícita. |
 
-**Desviación de alcance:** la API FastAPI y el backoffice estático aprobados en el plan no se entregaron en los pasos 12–17. Se mantienen pendientes para no alterar la exclusión organizativa de `uv.lock`, de acuerdo con la decisión expresa del usuario. La lógica y persistencia SQLite sí se implementaron y verificaron.
+**Cambio de arquitectura solicitado:** el usuario confirmó que no se use FastAPI y aprobó `http.server` de la biblioteca estándar, API JSON y backoffice estático. No se modificarán ni se leerán `uv.lock`; no se añadirán dependencias. La integración HTTP y la UI se implementarán en el Paso 19b, después de registrar esta versión del plan.
 
 ## Pendientes de implementación y decisiones técnicas
 
-- FastAPI está aprobado como dependencia, pero su integración queda pendiente hasta gestionar la dependencia sin acceder a `uv.lock`, que permanece excluido por la política organizativa.
-- No añadir dependencias aparte de FastAPI sin autorización adicional.
+- Implementar el contrato HTTP de la sección anterior con la biblioteca estándar, sin FastAPI.
+- No añadir dependencias de aplicación sin autorización adicional.
 - Docker y despliegue no están incluidos en el alcance aprobado; no configurarlos como parte de estos pasos.
-
-## Restricción de entorno registrada durante el Paso 13
-
-El entorno no tiene `uv` y la política organizativa excluye `uv.lock`. Para respetar esa restricción, el Paso 13 entrega el caso de uso de registro sobre SQLite sin añadir FastAPI ni exponer todavía un endpoint HTTP. No se lee, edita ni se intenta actualizar el lockfile. La exposición HTTP queda pendiente hasta que pueda gestionarse la dependencia sin acceder al archivo excluido.
 
 ## Fuera de alcance
 

@@ -425,3 +425,22 @@
 - **Desviaciones evitadas:** ninguna.
 - **Cambios respecto al plan:** se documenta como pendiente la exposición HTTP y la interfaz estática, sin cambiar la restricción del lockfile.
 - **Commit:** `docs(memory-bank): cerrar memoria de implementación`
+
+## Paso 19a — Ajustar el plan a HTTP de biblioteca estándar
+- **Fecha:** 2026-10-27
+- **Modo:** Agent
+- **Checklist:** C06, C12, C14
+- **Qué se hizo:**
+  - Registrado el cambio solicitado por el usuario: no usar FastAPI ni añadir dependencias.
+  - Definido el uso de `http.server` para la API JSON y para servir la UI estática desde el mismo origen.
+  - Delimitadas las rutas de catálogos, registro, listado, ficha, cambios de estado/área y resumen por severidad.
+  - Separados la implementación/verificación HTTP (19b) y la auditoría/descripción del PR (19c).
+- **Archivos:**
+  - `memory-bank/plan-implementacion.md` — versión 2 y alcance HTTP/UI actualizado
+  - `memory-bank/estado-actual.md` — secuencia de pasos siguiente
+  - `memory-bank/historial-commits.md` — registro del ajuste
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case.
+- **Decisiones y pendientes:** `http.server` de la biblioteca estándar, solo origen local por defecto, sin FastAPI ni dependencias nuevas. La implementación debe respetar el contrato escrito en el plan y verificar HTTP/UI.
+- **Desviaciones evitadas:** no se elude ni se modifica la exclusión de `uv.lock`; no se instala un framework.
+- **Cambios respecto al plan:** sustituye FastAPI por servidor HTTP estándar a solicitud expresa del usuario. Plan versionado como versión 2 antes de implementar.
+- **Commit:** `docs(memory-bank): ajustar plan a HTTP estándar`

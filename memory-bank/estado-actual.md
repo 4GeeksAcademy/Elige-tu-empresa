@@ -24,10 +24,10 @@
 - Paso 18: memoria de cierre sincronizada con lo entregado y la limitación HTTP.
 
 ## En curso
-- Paso 18: cambios de cierre listos para revisión; pendiente `OK commit`.
+- Paso 19a: actualización del plan a HTTP estándar lista para revisión; pendiente `OK commit`.
 
 ## Siguiente
-- Tras cerrar el Paso 18, continuar con el Paso 19: auditoría y descripción del PR. La exposición HTTP sigue pendiente mientras la dependencia FastAPI no pueda gestionarse respetando la exclusión.
+- Tras cerrar el Paso 19a, implementar API JSON y backoffice estático con biblioteca estándar en el Paso 19b; después completar auditoría y descripción del PR en el Paso 19c.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
@@ -43,6 +43,7 @@
 | 2026-10-27 | 10 | El monorepo no configura un workspace pnpm raíz ni comandos globales de lint, pruebas o arranque; el stack de aplicación y la persistencia no están elegidos |
 | 2026-10-27 | 11 | UI estática en `uis/backoffice/`, API central FastAPI en `services/`, SQLite estándar, autor manual sin autenticación, fechas UTC mostradas en zona local del navegador; «abierta» incluye `nueva`, `enCurso` y `resuelta` |
 | 2026-10-27 | 12 | Los IDs de incidencias y eventos usan UUID v4 en texto; los catálogos aprobados y seis áreas asignables se aplican también en SQLite; historial append-only protegido por triggers |
+| 2026-10-27 | 19a | Sustituir FastAPI por `http.server` de biblioteca estándar; no añadir dependencias ni acceder a `uv.lock`; servir API JSON y backoffice estático desde el mismo origen |
 
 ## Pendientes
-- Antes de añadir FastAPI, resolver cómo gestionar la dependencia sin acceder a `uv.lock`, que permanece excluido por la política de contenido.
+- Implementar el servidor HTTP estándar y el backoffice estático en el Paso 19b, sin dependencias externas.
