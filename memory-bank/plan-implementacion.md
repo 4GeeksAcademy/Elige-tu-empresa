@@ -94,6 +94,10 @@ Cada paso se implementa en un commit separado, con sus IDs en el asunto/cuerpo s
 - Comprobar el patrón del repositorio para declarar dependencias con `uv` y elegir el manifiesto apropiado para FastAPI; no añadir dependencias aparte de FastAPI sin autorización adicional.
 - Docker y despliegue no están incluidos en el alcance aprobado; no configurarlos como parte de estos pasos.
 
+## Restricción de entorno registrada durante el Paso 13
+
+El entorno no tiene `uv` y la política organizativa excluye `uv.lock`. Para respetar esa restricción, el Paso 13 entrega el caso de uso de registro sobre SQLite sin añadir FastAPI ni exponer todavía un endpoint HTTP. No se lee, edita ni se intenta actualizar el lockfile. La exposición HTTP queda pendiente hasta que pueda gestionarse la dependencia sin acceder al archivo excluido.
+
 ## Fuera de alcance
 
 - Autenticación, autorización y permisos.

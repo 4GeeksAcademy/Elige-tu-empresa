@@ -296,3 +296,24 @@
 - **Desviaciones evitadas:** no se asigna Dirección Ejecutiva; no se introdujeron dependencias de persistencia o de pruebas; no se intentó leer `uv.lock` por otra vía.
 - **Cambios respecto al plan:** se concretó el formato de IDs pendiente en la versión 1: UUID v4, confirmado por el usuario.
 - **Commit:** `feat(incidents): añadir modelo y persistencia sqlite`
+
+## Paso 13 — Registrar incidencias y asignarlas a un área
+- **Fecha:** 2026-10-27
+- **Modo:** Agent
+- **Checklist:** C08
+- **Qué se hizo:**
+  - Añadido el caso de uso `registerIncident`, que valida canal, tipo, severidad, título, descripción, autor y un área asignable.
+  - La función persiste la incidencia en estado `nueva`, con UUID v4 y marcas temporales UTC, y devuelve el modelo creado.
+  - Añadidas pruebas para los tres canales, las seis áreas asignables, valores válidos e inválidos, datos obligatorios y persistencia.
+- **Archivos:**
+  - `services/api/incidents.py` — caso de uso de registro sobre SQLite
+  - `services/api/tests/test_incidents.py` — pruebas del registro y asignación
+  - `services/api/README.es.md`, `services/api/README.md` — documentación bilingüe del caso de uso y la limitación HTTP
+  - `memory-bank/plan-implementacion.md` — restricción de entorno y ruta HTTP pendiente
+  - `memory-bank/estado-actual.md` — avance y limitación del paso
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 02-guias-bilingues, 03-paquetes-y-recursos-compartidos, 04-nombres-camel-case.
+- **Decisiones y pendientes:** no se modificó ni se accedió a `uv.lock`. El registro funciona como caso de uso Python; no hay endpoint HTTP porque FastAPI no está disponible y no se puede gestionar su dependencia mientras el lockfile siga excluido.
+- **Desviaciones evitadas:** se respetó la exclusión deliberada de `uv.lock`; no se instaló un gestor o dependencia por vías no coordinadas, ni se cambió el framework aprobado.
+- **Cambios respecto al plan:** el registro se implementó en la capa de servicio SQLite; la ruta HTTP se pospone explícitamente por la restricción del entorno, sin alterar la política.
+- **Commit:** `feat(incidents): registrar incidencias por servicio`

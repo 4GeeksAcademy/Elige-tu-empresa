@@ -15,17 +15,18 @@
 - Paso 09: contexto de producto documentado y catálogos validados por el usuario en la ronda 09b.
 - Paso 10: stack tecnológico y estructura actual del repositorio documentados.
 - Paso 11: plan de implementación versión 1 aprobado y guardado en `7419deb`.
-- Paso 12: catálogos aprobados, modelos UUID v4, restricciones SQLite y eventos inmutables implementados; 12 pruebas pasan.
+- Paso 12: catálogos aprobados, modelos UUID v4, restricciones SQLite y eventos inmutables implementados en `f7fb380`; 12 pruebas pasan.
+- Paso 13: caso de uso SQLite para registrar incidencias y asignar área implementado; 20 pruebas pasan. La ruta HTTP permanece pendiente por la restricción de `uv.lock`.
 
 ## En curso
-- Paso 12: cambios listos para revisión; pendiente `OK commit`.
+- Paso 13: cambios listos para revisión; pendiente `OK commit`.
 
 ## Siguiente
-- Tras cerrar el Paso 12, continuar con el Paso 13: registro de incidencias y asignación a un área.
+- Tras cerrar el Paso 13, continuar con el Paso 14: estados, historial trazable y ficha; la exposición HTTP sigue pendiente mientras la dependencia FastAPI no pueda gestionarse respetando la exclusión.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
-- El servicio tiene catálogos, modelos y esquema de persistencia SQLite; aún no expone endpoints ni incluye una interfaz de backoffice.
+- El servicio tiene catálogos, modelos, esquema SQLite y un caso de uso de registro. Aún no expone endpoints HTTP ni incluye una interfaz de backoffice.
 - No hay comandos globales configurados para lint, pruebas o arranque de una aplicación.
 
 ## Decisiones cerradas
@@ -39,4 +40,4 @@
 | 2026-10-27 | 12 | Los IDs de incidencias y eventos usan UUID v4 en texto; los catálogos aprobados y seis áreas asignables se aplican también en SQLite; historial append-only protegido por triggers |
 
 ## Pendientes
-- Antes de añadir FastAPI en el Paso 13, resolver cómo actualizar dependencias con `uv`: `uv.lock` está excluido por la política de contenido y no se inspeccionó.
+- Antes de añadir FastAPI, resolver cómo gestionar la dependencia sin acceder a `uv.lock`, que permanece excluido por la política de contenido.
