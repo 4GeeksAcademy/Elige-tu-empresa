@@ -12,12 +12,13 @@
 - Paso 20: ejemplos adicionales NC-01–NC-03 implementados.
 - Paso 07: reglas NC-01, NC-02 y NC-03 incorporadas en el commit `c3e6e02`.
 - Paso 08: pruebas con subagente registradas en `d354891`; el usuario acepta detenerse ante el conflicto como resultado válido. Reglas conservadas sin ajustes.
+- Paso 09: contexto de producto y catálogos documentados como borrador.
 
 ## En curso
-- Paso 08b: validación del usuario registrada; pendiente `OK commit` del cierre documental.
+- Pendiente la validación del usuario al borrador de producto y catálogos antes de avanzar a la implementación. El cierre del Paso 08 está incorporado en `ea2740a`.
 
 ## Siguiente
-- Paso 09: leer `CONTEXT.md`, documentar el contexto de producto y los catálogos, y parar para su validación.
+- Validar usuarios, áreas asignables, canales, tipos, severidades, estados e identificadores del borrador del Paso 09; después, continuar con el Paso 10: stack tecnológico.
 
 ## Estado del proyecto
 - El gestor de incidencias no existe todavía.

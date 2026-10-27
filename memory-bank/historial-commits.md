@@ -196,3 +196,22 @@
 - **Desviaciones evitadas:** ninguna nueva; no se ejecutaron pruebas adicionales.
 - **Cambios respecto al plan:** se acepta la detención ante el conflicto en lugar de exigir la creación de las alternativas esperadas.
 - **Commit:** `docs(memory-bank): registrar validación de las pruebas de reglas`
+
+## Paso 09 — Documentar el contexto de producto y los catálogos
+- **Fecha:** 2026-10-26
+- **Modo:** Agent
+- **Checklist:** BM1, BM2, BM5 · **Criterios:** C05, C13 (pendientes de validación)
+- **Qué se hizo:**
+  - Leído el briefing completo y documentada la operación de Brasaland con referencias a sus secciones.
+  - Separadas las áreas literales de los canales candidatos y las necesidades derivadas del gestor.
+  - Marcados como pendientes tipos, severidades, estados e identificadores, sin inventar valores ni convenciones.
+- **Archivos:**
+  - `memory-bank/contexto-producto.md` — borrador de producto, catálogos, glosario y decisiones pendientes
+  - `memory-bank/README.md` — índice actualizado con el borrador creado
+  - `memory-bank/estado-actual.md` — parada de validación del Paso 09
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 02-guias-bilingues (excepción explícita del índice de memoria)
+- **Decisiones y pendientes:** el usuario debe validar las propuestas y aportar o aprobar los catálogos ausentes; no se escribe código.
+- **Desviaciones evitadas:** no se convirtieron los medios de comunicación del briefing en canales aprobados ni se inventaron estados o severidades.
+- **Cambios respecto al plan:** ninguno
+- **Commit:** `docs(memory-bank): documentar contexto de producto de Brasaland`

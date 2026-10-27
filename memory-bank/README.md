@@ -20,7 +20,7 @@ Si un archivo aún no existe, sáltalo: la columna "Se crea en" indica cuándo a
 | `encargo.md` | Ticket del CTO, checklist con IDs (tareas y criterios) y plan paso a paso | Núcleo | Paso 01 | Solo si cambia el encargo |
 | `estado-actual.md` | Hecho, en curso, siguiente, estado del proyecto, decisiones cerradas y pendientes | Núcleo | Paso 01 | En cada commit |
 | `historial-commits.md` | Bitácora: una entrada por commit, con el formato de `.agents/rules/00-commits-y-bitacora.md` | Bajo demanda | Paso 01 | En cada commit |
-| `contexto-producto.md` | La empresa, quién usa el backoffice, qué es una incidencia y cuándo es crítica, catálogos y glosario | Núcleo | Paso 09 | Si cambian los catálogos validados |
+| `contexto-producto.md` | La empresa, usuarios propuestos, incidencias, catálogos y glosario; borrador con valores pendientes de validación | Núcleo | Paso 09 | Si cambian los catálogos validados |
 | `stack-tecnologico.md` | Piezas del monorepo, gestor de dependencias, comandos clave y persistencia | Núcleo | Paso 10 | Si cambia el stack |
 | `plan-implementacion.md` | Plan del gestor de incidencias, versionado | Núcleo | Paso 11 | Si cambia el plan, en el mismo commit |
 | `registro/resumen-inicial-agente.md` | Resumen inicial del agente, hecho sin contexto (hipótesis; no se edita) | Evidencia | Paso 02 | Nunca |
