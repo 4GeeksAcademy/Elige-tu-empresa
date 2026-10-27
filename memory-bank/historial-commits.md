@@ -253,3 +253,21 @@
 - **Desviaciones evitadas:** no se atribuyeron al briefing los catálogos que no define; no se renombró código ajeno al alcance de esta tarea.
 - **Cambios respecto al plan:** ronda separada 09b para registrar la validación del usuario.
 - **Commit:** `docs(rules): mantener convenciones camelcase`
+
+## Paso 11 — Versionar el plan de implementación
+- **Fecha:** 2026-10-27
+- **Modo:** Plan → Agent
+- **Checklist:** BM3, E4 · **Criterios:** C06
+- **Qué se hizo:**
+  - Acordada la ubicación de la interfaz y la API, y aprobados FastAPI, SQLite estándar, autor manual y fechas UTC mostradas en zona horaria local.
+  - Definidos modelo, eventos append-only con escritura transaccional, transiciones, filtros, resumen, pruebas y porciones de implementación.
+  - Aclarado que el resumen de abiertas incluye `nueva`, `enCurso` y `resuelta`, excluyendo `cerrada`.
+- **Archivos:**
+  - `memory-bank/plan-implementacion.md` — plan de implementación versión 1
+  - `memory-bank/estado-actual.md` — estado, decisiones cerradas y siguiente paso
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 03-paquetes-y-recursos-compartidos, 04-nombres-camel-case; regla 02 consultada para las guías README futuras, no modificadas en este paso.
+- **Decisiones y pendientes:** plan aprobado por el usuario; confirmar manifiesto `uv` y formato de IDs antes de implementarlos; Docker y despliegue quedan fuera de alcance.
+- **Desviaciones evitadas:** no se eligieron dependencias adicionales, autenticación ni una zona horaria fija; no se tocó el remoto ni archivos ajenos al paso.
+- **Cambios respecto al plan:** ninguno
+- **Commit:** `docs(memory-bank): versionar plan del gestor`

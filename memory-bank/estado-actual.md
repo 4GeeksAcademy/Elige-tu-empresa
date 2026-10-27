@@ -14,16 +14,17 @@
 - Paso 08: pruebas con subagente registradas en `d354891`; el usuario acepta detenerse ante el conflicto como resultado válido. Reglas conservadas sin ajustes.
 - Paso 09: contexto de producto documentado y catálogos validados por el usuario en la ronda 09b.
 - Paso 10: stack tecnológico y estructura actual del repositorio documentados.
+- Paso 11: plan de implementación versión 1 aprobado y documentado en `memory-bank/plan-implementacion.md`.
 
 ## En curso
-- Paso 09b: validación de usuarios y catálogos, y regla de nombres `camelCase` documentadas; pendiente `OK commit`. El cierre del Paso 08 está incorporado en `ea2740a`.
+- Paso 11: plan versión 1 preparado; pendiente `OK commit`.
 
 ## Siguiente
-- Tras cerrar el Paso 09b, continuar con el Paso 11 en modo Plan.
+- Tras cerrar el Paso 11, continuar con el Paso 12: catálogos, modelo de datos y persistencia.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
-- El gestor de incidencias, su API, su interfaz y su persistencia no existen todavía.
+- El gestor de incidencias, su API, su interfaz y su persistencia aún no están implementados. El stack y la arquitectura quedaron definidos en el plan versión 1.
 - No hay comandos globales configurados para lint, pruebas o arranque de una aplicación.
 
 ## Decisiones cerradas
@@ -33,6 +34,7 @@
 | 2026-10-26 | 03 | El entorno base de Python se sincroniza con `uv`; el manifiesto raíz no declara dependencias de aplicación y no configura Docker |
 | 2026-10-27 | 09b | Catálogos validados: seis áreas asignables, Dirección Ejecutiva de consulta, tres canales manuales, tipos, severidades, estados y IDs `camelCase` ASCII |
 | 2026-10-27 | 10 | El monorepo no configura un workspace pnpm raíz ni comandos globales de lint, pruebas o arranque; el stack de aplicación y la persistencia no están elegidos |
+| 2026-10-27 | 11 | UI estática en `uis/backoffice/`, API central FastAPI en `services/`, SQLite estándar, autor manual sin autenticación, fechas UTC mostradas en zona local del navegador; «abierta» incluye `nueva`, `enCurso` y `resuelta` |
 
 ## Pendientes
-- Decidir el stack de ejecución del gestor, si se usará Docker y qué dependencias de aplicación declarar. El entorno base de `uv` está vacío.
+- Antes del Paso 12, comprobar el patrón de manifiestos `uv` para declarar FastAPI y confirmar el formato de IDs de incidencias/eventos si no existe un precedente.
