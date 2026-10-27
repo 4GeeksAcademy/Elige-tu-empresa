@@ -106,26 +106,26 @@ Cada cambio de estado o de área y su evento de historial se guardan en una úni
 
 Cada paso se implementa en un commit separado, con sus IDs en el asunto/cuerpo según la regla 00. Se revisa y valida cada porción antes del commit.
 
-## Estado de entrega al cierre del Paso 18
+## Estado de entrega al cierre del Paso 19b
 
 | Paso | Estado | Evidencia o desviación |
 |---|---|---|
 | 12 | Completado | Catálogos, modelos y persistencia SQLite; `f7fb380` |
-| 13 | Completado en la capa de casos de uso | Registro y asignación SQLite; `d568bd7`. Endpoint HTTP aplazado por la restricción documentada sobre `uv.lock`. |
+| 13 | Completado | Registro y asignación SQLite; el endpoint HTTP se implementó y verificó en el Paso 19b. |
 | 14 | Completado en la capa de casos de uso | Estados, historial y ficha; `99ba6b1` |
 | 15 | Completado en la capa de casos de uso | Listado y filtros; `e88b8ce` |
 | 16 | Completado en la capa de casos de uso | Resumen por severidad; `ffb7701` |
-| 17 | Completado para SQLite | Recorrido integrado registrado en `registro/verificacion.md`; HTTP e interfaz no se verificaron porque no están implementados. |
+| 17 | Completado | Recorrido de dominio SQLite registrado en `registro/verificacion.md`; la misma evidencia se amplió con el recorrido HTTP del Paso 19b. |
 | 18 | Completado | Memoria de cierre sincronizada; `efd5492`. |
-| 19a | En revisión | Sustituir la decisión FastAPI por servidor HTTP de biblioteca estándar. |
-| 19b | Pendiente | API JSON y backoffice estático; ejecutar pruebas HTTP integradas. |
+| 19a | Completado | Plan versión 2 para `http.server`, sin dependencias; `12cfc19`. |
+| 19b | Completado | API JSON, backoffice estático y 35 pruebas aprobadas. |
 | 19c | Pendiente | Auditoría y descripción del PR; las acciones remotas requieren autorización explícita. |
 
 **Cambio de arquitectura solicitado:** el usuario confirmó que no se use FastAPI y aprobó `http.server` de la biblioteca estándar, API JSON y backoffice estático. No se modificarán ni se leerán `uv.lock`; no se añadirán dependencias. La integración HTTP y la UI se implementarán en el Paso 19b, después de registrar esta versión del plan.
 
-## Pendientes de implementación y decisiones técnicas
+## Pendientes y decisiones técnicas
 
-- Implementar el contrato HTTP de la sección anterior con la biblioteca estándar, sin FastAPI.
+- Auditar C01–C15 y redactar la descripción del PR en el Paso 19c.
 - No añadir dependencias de aplicación sin autorización adicional.
 - Docker y despliegue no están incluidos en el alcance aprobado; no configurarlos como parte de estos pasos.
 

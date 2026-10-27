@@ -29,14 +29,14 @@ La guía de estructura y las reglas aplicables a componentes y recursos comparti
 
 La presencia del script de preparación no implica que exista un stack de aplicación. El devcontainer reserva puertos y monta el socket de Docker, pero no hay una configuración `docker-compose.yml` en la raíz.
 
-## Estado del gestor al cierre del Paso 18
+## Estado del gestor tras el Paso 19b
 
-- **Servicio:** `services/api/` contiene casos de uso Python para registrar y consultar incidencias, cambiar estado y área, listar con filtros y resumir incidencias abiertas por severidad.
+- **Servicio:** `services/api/` contiene la API JSON HTTP con `http.server` de la biblioteca estándar y casos de uso Python para registrar y consultar incidencias, cambiar estado y área, listar con filtros y resumir incidencias abiertas por severidad.
 - **Persistencia:** SQLite mediante `sqlite3` de la biblioteca estándar. El esquema y las restricciones se inicializan desde `database.py`; las pruebas usan bases temporales o en memoria.
-- **Pruebas:** `unittest` de la biblioteca estándar; se ejecutan con `PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s services/api/tests -v`.
-- **Dependencias de aplicación:** no se añadieron dependencias. FastAPI continúa siendo el framework aprobado para la futura API HTTP, pero no se incorporó porque `uv.lock` está excluido por la política organizativa y el usuario pidió mantener esa restricción.
-- **Interfaz:** el backoffice estático todavía no se implementó. No hay endpoints HTTP ni una aplicación que arrancar; los pasos 12–17 verificaron los casos de uso SQLite.
-- **Pendiente:** decidir una forma de gestionar FastAPI que respete la exclusión de `uv.lock`; no acceder, modificar ni intentar regenerar ese archivo.
+- **Pruebas:** `unittest` de la biblioteca estándar; se ejecutan con `PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s services/api/tests -v`. La suite pasa con 35 pruebas.
+- **Dependencias de aplicación:** no se añadieron dependencias. La API y la UI usan herramientas estándar; `uv.lock` permanece excluido y no se leyó ni modificó.
+- **Interfaz:** `uis/backoffice/` contiene HTML, CSS y JavaScript sin framework. `python -m services.api.server` sirve la API y los estáticos desde el mismo origen; el servidor crea `data/incidents.sqlite` y escucha en `127.0.0.1:8000` por defecto.
+- **Pendiente:** auditoría de criterios C01–C15 y descripción del PR en el Paso 19c. Node.js no está disponible en el entorno, por lo que `node --check` no se pudo ejecutar.
 
 ## Reglas del agente
 

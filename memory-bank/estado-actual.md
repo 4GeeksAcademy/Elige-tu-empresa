@@ -22,16 +22,18 @@
 - Paso 16: resumen de incidencias abiertas por severidad implementado en `ffb7701`; 30 pruebas pasan.
 - Paso 17: recorrido integrado SQLite completado; registro de evidencia en `memory-bank/registro/verificacion.md`.
 - Paso 18: memoria de cierre sincronizada con lo entregado y la limitación HTTP.
+- Paso 19a: plan versión 2 aprobado para `http.server`, sin FastAPI ni dependencias; commit `12cfc19`.
+- Paso 19b: API JSON y backoffice estático implementados y verificados; 35 pruebas pasan.
 
 ## En curso
-- Paso 19a: actualización del plan a HTTP estándar lista para revisión; pendiente `OK commit`.
+- Paso 19c: auditoría de C01–C15 y descripción de la propuesta de PR.
 
 ## Siguiente
-- Tras cerrar el Paso 19a, implementar API JSON y backoffice estático con biblioteca estándar en el Paso 19b; después completar auditoría y descripción del PR en el Paso 19c.
+- Si la auditoría del Paso 19c no encuentra criterios incumplidos, cerrar la descripción del PR y parar para revisión. No subir la rama ni crear PR sin autorización.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
-- El servicio tiene catálogos, modelos, esquema SQLite y casos de uso para registro, cambios trazables, consulta de ficha, listado filtrable y resumen por severidad. Aún no expone endpoints HTTP ni incluye una interfaz de backoffice.
+- El servicio tiene API JSON con `http.server` de biblioteca estándar, catálogos, modelos, esquema SQLite y casos de uso para registro, cambios trazables, consulta de ficha, listado filtrable y resumen por severidad. El backoffice estático ofrece esos flujos desde el mismo origen.
 - No hay comandos globales configurados para lint, pruebas o arranque de una aplicación.
 
 ## Decisiones cerradas
@@ -44,6 +46,7 @@
 | 2026-10-27 | 11 | UI estática en `uis/backoffice/`, API central FastAPI en `services/`, SQLite estándar, autor manual sin autenticación, fechas UTC mostradas en zona local del navegador; «abierta» incluye `nueva`, `enCurso` y `resuelta` |
 | 2026-10-27 | 12 | Los IDs de incidencias y eventos usan UUID v4 en texto; los catálogos aprobados y seis áreas asignables se aplican también en SQLite; historial append-only protegido por triggers |
 | 2026-10-27 | 19a | Sustituir FastAPI por `http.server` de biblioteca estándar; no añadir dependencias ni acceder a `uv.lock`; servir API JSON y backoffice estático desde el mismo origen |
+| 2026-10-27 | 19b | API y backoffice se implementan y prueban con biblioteca estándar; sin autenticación, el autor se introduce manualmente y el servidor escucha en loopback por defecto |
 
 ## Pendientes
-- Implementar el servidor HTTP estándar y el backoffice estático en el Paso 19b, sin dependencias externas.
+- Completar la auditoría C01–C15 y la descripción del PR en el Paso 19c.

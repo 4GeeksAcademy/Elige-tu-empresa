@@ -444,3 +444,29 @@
 - **Desviaciones evitadas:** no se elude ni se modifica la exclusión de `uv.lock`; no se instala un framework.
 - **Cambios respecto al plan:** sustituye FastAPI por servidor HTTP estándar a solicitud expresa del usuario. Plan versionado como versión 2 antes de implementar.
 - **Commit:** `docs(memory-bank): ajustar plan a HTTP estándar`
+
+## Paso 19b — Implementar API y backoffice con HTTP estándar
+- **Fecha:** 2026-10-27
+- **Modo:** Agent
+- **Checklist:** V1, V2 · **Criterios:** C06, C08–C14
+- **Qué se hizo:**
+  - Implementada la API JSON con `http.server`, validación de rutas y payloads, errores HTTP explícitos y servicio seguro de archivos estáticos desde la raíz del backoffice.
+  - Implementada la interfaz estática para registrar, filtrar y consultar incidencias, cambiar estado o área, consultar historial y ver el resumen por severidad.
+  - Añadidas pruebas HTTP con bases temporales; las 35 pruebas de la suite del servicio pasan.
+  - Actualizadas las guías bilingües y la memoria del stack, estado y evidencia HTTP.
+- **Archivos:**
+  - `services/api/server.py` — API JSON y servicio de estáticos
+  - `services/api/tests/test_server.py` — pruebas del contrato y flujo HTTP
+  - `services/api/README.es.md` y `services/api/README.md` — guía bilingüe del servicio
+  - `uis/backoffice/index.html`, `uis/backoffice/styles.css` y `uis/backoffice/app.js` — interfaz de gestión de incidencias
+  - `uis/backoffice/README.es.md` y `uis/backoffice/README.md` — guía bilingüe del backoffice
+  - `memory-bank/registro/verificacion.md` — evidencia HTTP y resultados de pruebas
+  - `memory-bank/estado-actual.md` — avance y siguiente paso
+  - `memory-bank/plan-implementacion.md` — estado de entrega
+  - `memory-bank/stack-tecnologico.md` — stack actualizado
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 02-guias-bilingues, 04-nombres-camel-case.
+- **Decisiones y pendientes:** sin dependencias; servidor ligado a loopback por defecto; autor introducido manualmente y sin autenticación. Node.js no está disponible para `node --check`. El Paso 19c queda pendiente.
+- **Desviaciones evitadas:** ninguna.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(incidents): servir gestor por HTTP estándar`

@@ -22,3 +22,18 @@ El recorrido se ejecutó contra una base SQLite temporal mediante los casos de u
 
 - La comprobación de extremo a extremo cubre los casos de uso SQLite y el flujo de dominio. La API HTTP y la interfaz no se verificaron porque todavía no hay endpoint ni backoffice ejecutable; FastAPI sigue aplazado por la restricción acordada sobre `uv.lock`.
 - Comprobación adicional: `PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s services/api/tests -v` → 30 pruebas pasan.
+
+## Verificación HTTP — Paso 19b
+
+**Fecha:** 2026-10-27. Las pruebas HTTP usan una base temporal y un puerto local efímero; no dejan datos de prueba en `data/`.
+
+| Escenario | Comprobación | Obtenido | ✅/❌ |
+|---|---|---|---|
+| Servir la interfaz | Solicitar `/`, `/app.js` y `/styles.css` | HTML, JavaScript y CSS responden con HTTP 200 y contenido esperado | ✅ |
+| Flujo HTTP | Consultar catálogos, registrar incidencia, filtrar, intentar transición prohibida, reasignar, recorrer estados permitidos, consultar ficha e historial y cerrar | Respuestas y datos coinciden con el estado persistido; la transición prohibida devuelve 400; el resumen excluye la incidencia cerrada | ✅ |
+| Validación y errores | Enviar filtros y payloads inválidos, ID desconocido, tipo de contenido no admitido y JSON malformado | Respuestas JSON con estados 400, 404 o 415 según el caso | ✅ |
+| Contención de estáticos | Solicitar una ruta codificada que intenta salir de la raíz del backoffice | HTTP 404; no se sirve un archivo externo | ✅ |
+| Suite del servicio | `PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s services/api/tests -v` | 35 pruebas pasan | ✅ |
+| Revisión de cambios | `git diff --check`; revisar manifests de dependencias | Sin errores de formato; no hay cambios en manifests | ✅ |
+
+`node --check uis/backoffice/app.js` no se pudo ejecutar porque Node.js no está disponible en el entorno. No se instaló ninguna herramienta ni dependencia.

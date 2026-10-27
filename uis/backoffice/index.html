@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#153a35">
+    <title>Incidencias · Brasaland</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="siteHeader">
+      <a class="brand" href="/">Brasaland<span>Digital</span></a>
+      <p>Centro de incidencias</p>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">OPERACIÓN CENTRALIZADA</p>
+          <h1>Incidencias</h1>
+          <p class="introText">Registra, asigna y sigue cada incidencia de los restaurantes.</p>
+        </div>
+        <div id="connectionStatus" class="connectionStatus" role="status">Conectando…</div>
+      </section>
+
+      <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+
+      <section aria-labelledby="summaryTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">VISTA GENERAL</p>
+            <h2 id="summaryTitle">Abiertas por severidad</h2>
+          </div>
+          <span class="muted">Incluye nuevas, en curso y resueltas</span>
+        </div>
+        <div id="severitySummary" class="summaryGrid" aria-live="polite"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="registerTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">NUEVO REGISTRO</p>
+            <h2 id="registerTitle">Registrar incidencia</h2>
+          </div>
+        </div>
+        <form id="registerForm" class="formGrid">
+          <label>Canal<select name="channelId" required></select></label>
+          <label>Tipo<select name="typeId" required></select></label>
+          <label>Severidad<select name="severityId" required></select></label>
+          <label>Área responsable<select name="responsibleAreaId" required></select></label>
+          <label class="wideField">Título<input name="title" maxlength="200" required></label>
+          <label class="wideField">Descripción<textarea name="description" rows="3" required></textarea></label>
+          <label>Autor<input name="createdBy" autocomplete="name" required></label>
+          <div class="formActions"><button type="submit">Guardar incidencia</button></div>
+        </form>
+      </section>
+
+      <section aria-labelledby="listTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">SEGUIMIENTO</p>
+            <h2 id="listTitle">Listado de incidencias</h2>
+          </div>
+        </div>
+        <form id="filterForm" class="filterBar">
+          <label>Estado<select name="statusId"></select></label>
+          <label>Severidad<select name="severityId"></select></label>
+          <label>Área responsable<select name="responsibleAreaId"></select></label>
+          <button type="submit" class="secondaryButton">Aplicar filtros</button>
+          <button type="reset" class="textButton">Limpiar</button>
+        </form>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr><th>Título</th><th>Estado</th><th>Severidad</th><th>Área responsable</th><th>Actualizada</th><th></th></tr>
+            </thead>
+            <tbody id="incidentRows"></tbody>
+          </table>
+          <p id="emptyList" class="emptyState" hidden>No hay incidencias que coincidan con los filtros.</p>
+        </div>
+      </section>
+
+      <section id="detailsPanel" class="panel" aria-labelledby="detailsTitle" hidden>
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">FICHA E HISTORIAL</p>
+            <h2 id="detailsTitle">Detalle de incidencia</h2>
+          </div>
+          <button id="closeDetails" type="button" class="textButton">Cerrar ficha</button>
+        </div>
+        <div id="incidentDetails"></div>
+        <div class="changeForms">
+          <form id="statusForm" class="inlineForm">
+            <h3>Cambiar estado</h3>
+            <label>Nuevo estado<select name="statusId" required></select></label>
+            <label>Autor<input name="author" autocomplete="name" required></label>
+            <button type="submit">Actualizar estado</button>
+          </form>
+          <form id="areaForm" class="inlineForm">
+            <h3>Reasignar área</h3>
+            <label>Área responsable<select name="responsibleAreaId" required></select></label>
+            <label>Autor<input name="author" autocomplete="name" required></label>
+            <button type="submit">Reasignar</button>
+          </form>
+        </div>
+        <h3>Historial de cambios</h3>
+        <ol id="historyEvents" class="historyList"></ol>
+        <p id="emptyHistory" class="emptyState" hidden>Esta incidencia todavía no tiene cambios registrados.</p>
+      </section>
+    </main>
+
+    <footer><span>Brasaland Digital</span><span>Gestión interna de incidencias</span></footer>
+  </body>
+</html>
