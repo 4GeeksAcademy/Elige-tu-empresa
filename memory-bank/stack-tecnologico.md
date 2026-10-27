@@ -1,6 +1,6 @@
 # Stack tecnológico y estructura del repositorio
 
-> Estado observado en el Paso 10. Describe la plantilla actual; no es una decisión del stack para el gestor de incidencias.
+> La primera sección conserva el estado de la plantilla observado en el Paso 10. La sección final registra el estado del servicio al cierre del Paso 18.
 
 ## Piezas del monorepo
 
@@ -29,9 +29,14 @@ La guía de estructura y las reglas aplicables a componentes y recursos comparti
 
 La presencia del script de preparación no implica que exista un stack de aplicación. El devcontainer reserva puertos y monta el socket de Docker, pero no hay una configuración `docker-compose.yml` en la raíz.
 
-## Persistencia y estado de la aplicación
+## Estado del gestor al cierre del Paso 18
 
-No hay una base de datos ni una estrategia de persistencia configuradas para el gestor: todavía no existe el gestor de incidencias. La tecnología de ejecución, las dependencias de aplicación, Docker y la persistencia siguen pendientes de decisión.
+- **Servicio:** `services/api/` contiene casos de uso Python para registrar y consultar incidencias, cambiar estado y área, listar con filtros y resumir incidencias abiertas por severidad.
+- **Persistencia:** SQLite mediante `sqlite3` de la biblioteca estándar. El esquema y las restricciones se inicializan desde `database.py`; las pruebas usan bases temporales o en memoria.
+- **Pruebas:** `unittest` de la biblioteca estándar; se ejecutan con `PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s services/api/tests -v`.
+- **Dependencias de aplicación:** no se añadieron dependencias. FastAPI continúa siendo el framework aprobado para la futura API HTTP, pero no se incorporó porque `uv.lock` está excluido por la política organizativa y el usuario pidió mantener esa restricción.
+- **Interfaz:** el backoffice estático todavía no se implementó. No hay endpoints HTTP ni una aplicación que arrancar; los pasos 12–17 verificaron los casos de uso SQLite.
+- **Pendiente:** decidir una forma de gestionar FastAPI que respete la exclusión de `uv.lock`; no acceder, modificar ni intentar regenerar ese archivo.
 
 ## Reglas del agente
 

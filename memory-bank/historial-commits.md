@@ -403,3 +403,25 @@
 - **Desviaciones evitadas:** ninguna; no se afirmó haber probado una interfaz que aún no existe.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `test(incidents): verificar flujo integrado`
+
+## Paso 18 — Cerrar y sincronizar la memoria
+- **Fecha:** 2026-10-27
+- **Modo:** Agent
+- **Checklist:** BM4
+- **Qué se hizo:**
+  - Actualizado el estado para reflejar los pasos 12–17 completados y el Paso 19 como siguiente.
+  - Actualizado el plan con el estado real de cada porción y la desviación explícita de HTTP/backoffice pendiente.
+  - Actualizado el stack observado: SQLite y `unittest` están en uso; FastAPI y la interfaz no se incorporaron por la restricción acordada.
+  - Revisado el índice de memoria y retirado el registro de desviaciones que no existe; la descripción del PR queda identificada como prevista para el Paso 19.
+  - Comprobado que `AGENTS.md` sigue describiendo las ubicaciones y el ciclo de trabajo vigentes; no requirió cambios.
+- **Archivos:**
+  - `memory-bank/estado-actual.md` — estado y siguiente paso
+  - `memory-bank/plan-implementacion.md` — entrega por pasos y desviación de alcance
+  - `memory-bank/stack-tecnologico.md` — stack implementado y limitaciones
+  - `memory-bank/README.md` — índice alineado con los archivos de memoria
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case.
+- **Decisiones y pendientes:** `uv.lock` sigue excluido; FastAPI y el backoffice quedan pendientes. El Paso 19 requiere auditoría y descripción del PR; no se autoriza ninguna acción remota por este registro.
+- **Desviaciones evitadas:** ninguna.
+- **Cambios respecto al plan:** se documenta como pendiente la exposición HTTP y la interfaz estática, sin cambiar la restricción del lockfile.
+- **Commit:** `docs(memory-bank): cerrar memoria de implementación`

@@ -89,9 +89,25 @@ Cada cambio de estado o de área y su evento de historial se guardan en una úni
 
 Cada paso se implementa en un commit separado, con sus IDs en el asunto/cuerpo según la regla 00. Se revisa y valida cada porción antes del commit.
 
-## Decisiones por resolver antes de implementarlas
+## Estado de entrega al cierre del Paso 18
 
-- Comprobar el patrón del repositorio para declarar dependencias con `uv` y elegir el manifiesto apropiado para FastAPI; no añadir dependencias aparte de FastAPI sin autorización adicional.
+| Paso | Estado | Evidencia o desviación |
+|---|---|---|
+| 12 | Completado | Catálogos, modelos y persistencia SQLite; `f7fb380` |
+| 13 | Completado en la capa de casos de uso | Registro y asignación SQLite; `d568bd7`. Endpoint HTTP aplazado por la restricción documentada sobre `uv.lock`. |
+| 14 | Completado en la capa de casos de uso | Estados, historial y ficha; `99ba6b1` |
+| 15 | Completado en la capa de casos de uso | Listado y filtros; `e88b8ce` |
+| 16 | Completado en la capa de casos de uso | Resumen por severidad; `ffb7701` |
+| 17 | Completado para SQLite | Recorrido integrado registrado en `registro/verificacion.md`; HTTP e interfaz no se verificaron porque no están implementados. |
+| 18 | En revisión | Sincronización de la memoria de cierre. |
+| 19 | Pendiente | Auditoría y descripción del PR; las acciones remotas requieren autorización explícita. |
+
+**Desviación de alcance:** la API FastAPI y el backoffice estático aprobados en el plan no se entregaron en los pasos 12–17. Se mantienen pendientes para no alterar la exclusión organizativa de `uv.lock`, de acuerdo con la decisión expresa del usuario. La lógica y persistencia SQLite sí se implementaron y verificaron.
+
+## Pendientes de implementación y decisiones técnicas
+
+- FastAPI está aprobado como dependencia, pero su integración queda pendiente hasta gestionar la dependencia sin acceder a `uv.lock`, que permanece excluido por la política organizativa.
+- No añadir dependencias aparte de FastAPI sin autorización adicional.
 - Docker y despliegue no están incluidos en el alcance aprobado; no configurarlos como parte de estos pasos.
 
 ## Restricción de entorno registrada durante el Paso 13

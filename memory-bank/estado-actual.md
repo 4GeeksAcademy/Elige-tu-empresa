@@ -21,12 +21,13 @@
 - Paso 15: listado con filtros validados por estado, severidad y área responsable implementado en `e88b8ce`; 29 pruebas pasan.
 - Paso 16: resumen de incidencias abiertas por severidad implementado en `ffb7701`; 30 pruebas pasan.
 - Paso 17: recorrido integrado SQLite completado; registro de evidencia en `memory-bank/registro/verificacion.md`.
+- Paso 18: memoria de cierre sincronizada con lo entregado y la limitación HTTP.
 
 ## En curso
-- Paso 17: verificación lista para revisión; pendiente `OK commit`.
+- Paso 18: cambios de cierre listos para revisión; pendiente `OK commit`.
 
 ## Siguiente
-- Tras cerrar el Paso 17, continuar con el Paso 18: cierre de la memoria; la exposición HTTP sigue pendiente mientras la dependencia FastAPI no pueda gestionarse respetando la exclusión.
+- Tras cerrar el Paso 18, continuar con el Paso 19: auditoría y descripción del PR. La exposición HTTP sigue pendiente mientras la dependencia FastAPI no pueda gestionarse respetando la exclusión.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
