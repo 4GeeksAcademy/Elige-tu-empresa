@@ -470,3 +470,23 @@
 - **Desviaciones evitadas:** ninguna.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(incidents): servir gestor por HTTP estándar`
+
+## Paso 19c — Auditar criterios y redactar la propuesta de PR
+- **Fecha:** 2026-10-27
+- **Modo:** Agent
+- **Checklist:** EN2, EN3, EN4, V3 · **Criterios:** C01–C15
+- **Qué se hizo:**
+  - Auditados C01–C15 contra archivos, pruebas y commits; todos cumplen.
+  - Comparados historial y manifests contra `origin/main`, tras autorización del usuario para obtener la referencia. Los 23 commits contienen `Paso:` y `Checklist:`; el único manifest distinto es `pyproject.toml`, sin dependencias de aplicación.
+  - Redactada la descripción del PR con resumen, método, discrepancias, reglas, propuesta no aplicada, evidencia de las pruebas de reglas, verificación y mapa del checklist.
+  - Al redactar la propuesta no se había realizado push ni abierto PR; después el usuario autorizó expresamente commit, push y creación del PR contra `main`.
+- **Archivos:**
+  - `memory-bank/registro/descripcion-pr.md` — auditoría y propuesta de descripción del PR
+  - `memory-bank/estado-actual.md` — estado y siguiente decisión
+  - `memory-bank/plan-implementacion.md` — estado del Paso 19c
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case.
+- **Decisiones y pendientes:** `origin/main` se obtuvo para lectura/auditoría con autorización expresa. El usuario autorizó el commit y las acciones remotas; falta ejecutarlas.
+- **Desviaciones evitadas:** ninguna; no se inventó un registro de desviaciones inexistente.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(memory-bank): registrar auditoría y descripción del PR`

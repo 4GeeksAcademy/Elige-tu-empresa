@@ -26,10 +26,10 @@
 - Paso 19b: API JSON y backoffice estático implementados y verificados; 35 pruebas pasan.
 
 ## En curso
-- Paso 19c: auditoría de C01–C15 y descripción de la propuesta de PR.
+- Paso 19c: auditoría C01–C15 aprobada y descripción del PR redactada. El usuario autorizó commit, push y PR; falta ejecutar la publicación.
 
 ## Siguiente
-- Si la auditoría del Paso 19c no encuentra criterios incumplidos, cerrar la descripción del PR y parar para revisión. No subir la rama ni crear PR sin autorización.
+- Tras abrir el PR contra `main`, esperar revisión; no hacer merge.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
@@ -49,4 +49,4 @@
 | 2026-10-27 | 19b | API y backoffice se implementan y prueban con biblioteca estándar; sin autenticación, el autor se introduce manualmente y el servidor escucha en loopback por defecto |
 
 ## Pendientes
-- Completar la auditoría C01–C15 y la descripción del PR en el Paso 19c.
+- Esperar revisión del PR; no hacer merge.

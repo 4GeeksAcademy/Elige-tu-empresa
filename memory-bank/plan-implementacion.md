@@ -119,7 +119,7 @@ Cada paso se implementa en un commit separado, con sus IDs en el asunto/cuerpo s
 | 18 | Completado | Memoria de cierre sincronizada; `efd5492`. |
 | 19a | Completado | Plan versión 2 para `http.server`, sin dependencias; `12cfc19`. |
 | 19b | Completado | API JSON, backoffice estático y 35 pruebas aprobadas. |
-| 19c | Pendiente | Auditoría y descripción del PR; las acciones remotas requieren autorización explícita. |
+| 19c | Auditoría aprobada y descripción redactada; publicación autorizada | C01–C15 aprobados; el usuario autorizó commit, push y creación del PR contra `main`. |
 
 **Cambio de arquitectura solicitado:** el usuario confirmó que no se use FastAPI y aprobó `http.server` de la biblioteca estándar, API JSON y backoffice estático. No se modificarán ni se leerán `uv.lock`; no se añadirán dependencias. La integración HTTP y la UI se implementarán en el Paso 19b, después de registrar esta versión del plan.
 
