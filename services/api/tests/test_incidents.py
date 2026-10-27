@@ -1,7 +1,13 @@
+import sqlite3
 import unittest
 
 from services.api.database import createConnection, initializeDatabase
-from services.api.incidents import registerIncident
+from services.api.incidents import (
+    changeIncidentStatus,
+    getIncidentDetails,
+    reassignIncidentArea,
+    registerIncident,
+)
 from services.api.models import isUuid4, parseUtcTimestamp
 
 
@@ -125,6 +131,193 @@ class RegisterIncidentTests(unittest.TestCase):
         ).fetchone()[0]
 
         self.assertEqual(historyCount, 0)
+
+    def testStatusTransitionsFollowTheApprovedLifecycle(self) -> None:
+        incident = self._registerIncident()
+        incident = changeIncidentStatus(
+            self.connection, incident.id, "enCurso", "Operadora"
+        )
+        self.assertEqual(incident.statusId, "enCurso")
+
+        incident = changeIncidentStatus(
+            self.connection, incident.id, "resuelta", "Operadora"
+        )
+        self.assertEqual(incident.statusId, "resuelta")
+
+        incident = changeIncidentStatus(
+            self.connection, incident.id, "enCurso", "Operadora"
+        )
+        self.assertEqual(incident.statusId, "enCurso")
+
+        incident = changeIncidentStatus(
+            self.connection, incident.id, "resuelta", "Operadora"
+        )
+        incident = changeIncidentStatus(
+            self.connection, incident.id, "cerrada", "Operadora"
+        )
+        self.assertEqual(incident.statusId, "cerrada")
+
+    def testInvalidStatusTransitionsAreRejectedWithoutHistory(self) -> None:
+        incident = self._registerIncident()
+
+        with self.assertRaisesRegex(ValueError, "not allowed"):
+            changeIncidentStatus(
+                self.connection, incident.id, "resuelta", "Operadora"
+            )
+
+        incident = changeIncidentStatus(
+            self.connection, incident.id, "enCurso", "Operadora"
+        )
+        incident = changeIncidentStatus(
+            self.connection, incident.id, "resuelta", "Operadora"
+        )
+        incident = changeIncidentStatus(
+            self.connection, incident.id, "cerrada", "Operadora"
+        )
+        with self.assertRaisesRegex(ValueError, "not allowed"):
+            changeIncidentStatus(
+                self.connection, incident.id, "enCurso", "Operadora"
+            )
+
+        details = getIncidentDetails(self.connection, incident.id)
+        self.assertEqual(details.incident.statusId, "cerrada")
+        self.assertEqual(
+            tuple(event.newValue for event in details.historyEvents),
+            ("enCurso", "resuelta", "cerrada"),
+        )
+
+    def testStatusAndAreaChangesRollbackWhenHistoryInsertFails(self) -> None:
+        incident = self._registerIncident()
+        self.connection.execute(
+            """
+            CREATE TRIGGER rejectHistoryInsert
+            BEFORE INSERT ON historyEvents
+            BEGIN
+                SELECT RAISE(ABORT, 'history insert rejected');
+            END
+            """
+        )
+
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "history insert rejected"):
+            changeIncidentStatus(
+                self.connection, incident.id, "enCurso", "Operadora"
+            )
+
+        self.connection.execute("DROP TRIGGER rejectHistoryInsert")
+        changeIncidentStatus(
+            self.connection, incident.id, "enCurso", "Operadora"
+        )
+        self.connection.execute(
+            """
+            CREATE TRIGGER rejectHistoryInsert
+            BEFORE INSERT ON historyEvents
+            BEGIN
+                SELECT RAISE(ABORT, 'history insert rejected');
+            END
+            """
+        )
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "history insert rejected"):
+            reassignIncidentArea(
+                self.connection,
+                incident.id,
+                "comprasProveedores",
+                "Supervisora",
+            )
+
+        storedIncident = self.connection.execute(
+            "SELECT statusId, responsibleAreaId FROM incidents WHERE id = ?",
+            (incident.id,),
+        ).fetchone()
+        eventRows = self.connection.execute(
+            "SELECT changeType FROM historyEvents WHERE incidentId = ?",
+            (incident.id,),
+        ).fetchall()
+        self.assertEqual(storedIncident["statusId"], "enCurso")
+        self.assertEqual(storedIncident["responsibleAreaId"], "tecnologia")
+        self.assertEqual(tuple(row["changeType"] for row in eventRows), ("estado",))
+
+    def testAreaReassignmentAndStatusChangesAppearInIncidentDetails(self) -> None:
+        incident = self._registerIncident()
+        changeIncidentStatus(self.connection, incident.id, "enCurso", "Operadora")
+        reassignedIncident = reassignIncidentArea(
+            self.connection,
+            incident.id,
+            "comprasProveedores",
+            "Supervisora",
+        )
+        details = getIncidentDetails(self.connection, incident.id)
+
+        self.assertEqual(reassignedIncident.responsibleAreaId, "comprasProveedores")
+        self.assertEqual(details.incident.responsibleAreaId, "comprasProveedores")
+        self.assertEqual(
+            tuple(event.changeType for event in details.historyEvents),
+            ("estado", "areaResponsable"),
+        )
+        self.assertEqual(
+            tuple(
+                (event.previousValue, event.newValue)
+                for event in details.historyEvents
+            ),
+            (("nueva", "enCurso"), ("tecnologia", "comprasProveedores")),
+        )
+        self.assertEqual(
+            tuple(event.author for event in details.historyEvents),
+            ("Operadora", "Supervisora"),
+        )
+        self.assertTrue(
+            all(
+                event.createdAt.tzinfo is not None
+                and event.createdAt.utcoffset().total_seconds() == 0
+                for event in details.historyEvents
+            )
+        )
+
+    def testAreaReassignmentRejectsInvalidAreaAndBlankAuthor(self) -> None:
+        incident = self._registerIncident()
+
+        with self.assertRaisesRegex(ValueError, "responsibleAreaId"):
+            reassignIncidentArea(
+                self.connection,
+                incident.id,
+                "direccionEjecutiva",
+                "Operadora",
+            )
+        with self.assertRaisesRegex(ValueError, "author"):
+            reassignIncidentArea(
+                self.connection,
+                incident.id,
+                "comprasProveedores",
+                " ",
+            )
+
+        details = getIncidentDetails(self.connection, incident.id)
+        self.assertEqual(details.incident.responsibleAreaId, "tecnologia")
+        self.assertEqual(details.historyEvents, ())
+
+    def testChangesRejectMissingIncidentAndNoOpValues(self) -> None:
+        incident = self._registerIncident()
+
+        with self.assertRaisesRegex(LookupError, "Incident not found"):
+            changeIncidentStatus(
+                self.connection,
+                "00000000-0000-4000-8000-000000000000",
+                "enCurso",
+                "Operadora",
+            )
+        with self.assertRaisesRegex(ValueError, "already set"):
+            reassignIncidentArea(
+                self.connection,
+                incident.id,
+                "tecnologia",
+                "Operadora",
+            )
+
+    def testIncidentDetailsRejectUnknownIncident(self) -> None:
+        with self.assertRaisesRegex(LookupError, "Incident not found"):
+            getIncidentDetails(
+                self.connection,
+                "00000000-0000-4000-8000-000000000000",
+            )
 
 
 if __name__ == "__main__":

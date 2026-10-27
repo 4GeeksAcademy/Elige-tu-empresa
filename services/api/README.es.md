@@ -7,7 +7,7 @@ Base de datos y modelos del gestor centralizado de incidencias de Brasaland. La 
 - `catalogs.py`: canales, tipos, severidades, áreas responsables y estados validados.
 - `models.py`: entidades de incidencia e historial, IDs UUID v4 y marcas temporales UTC.
 - `database.py`: conexiones, restricciones SQLite y protección de eventos inmutables.
-- `incidents.py`: validación y registro de incidencias en su estado inicial.
+- `incidents.py`: registro, cambios validados de estado y área, y consulta de ficha con historial.
 - `tests/`: pruebas con `unittest` y una base de datos en memoria.
 
 ## Comprobaciones
@@ -18,6 +18,6 @@ Desde la raíz del repositorio:
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s services/api/tests -v
 ```
 
-Inicializa una base con `createConnection(ruta)` y `initializeDatabase(conexion)`. Registra una incidencia con `registerIncident(conexion, ...)`; valida los catálogos y persiste el autor y las marcas UTC. La función devuelve el modelo creado. El llamador es responsable de cerrar la conexión.
+Inicializa una base con `createConnection(ruta)` y `initializeDatabase(conexion)`. Usa `registerIncident(conexion, ...)` para registrar una incidencia; `changeIncidentStatus(...)` y `reassignIncidentArea(...)` para cambios validados con evento histórico transaccional; y `getIncidentDetails(...)` para consultar la ficha con su historial.
 
 > Los endpoints HTTP de FastAPI siguen pendientes: la dependencia y el lockfile no se pueden preparar mientras `uv.lock` permanezca excluido.

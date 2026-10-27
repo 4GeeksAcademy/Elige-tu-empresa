@@ -291,7 +291,7 @@
   - `memory-bank/plan-implementacion.md` — decisión de UUID v4 concretada tras confirmación del usuario
   - `memory-bank/estado-actual.md` — estado y siguiente paso
   - `memory-bank/historial-commits.md` — registro del paso
-- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 02-guias-bilingues, 03-paquetes-y-recursos-compartidos, 04-nombres-camel-case.
+- **Reglas aplicadas:** 00-commits-y-bitacora, 02-guias-bilingues, 04-nombres-camel-case.
 - **Decisiones y pendientes:** UUID v4 en texto confirmado por el usuario para incidencias y eventos. FastAPI está autorizada pero no se incorporó en esta porción, que no expone endpoints; `uv.lock` no pudo inspeccionarse por la política de exclusión de contenido.
 - **Desviaciones evitadas:** no se asigna Dirección Ejecutiva; no se introdujeron dependencias de persistencia o de pruebas; no se intentó leer `uv.lock` por otra vía.
 - **Cambios respecto al plan:** se concretó el formato de IDs pendiente en la versión 1: UUID v4, confirmado por el usuario.
@@ -317,3 +317,25 @@
 - **Desviaciones evitadas:** se respetó la exclusión deliberada de `uv.lock`; no se instaló un gestor o dependencia por vías no coordinadas, ni se cambió el framework aprobado.
 - **Cambios respecto al plan:** el registro se implementó en la capa de servicio SQLite; la ruta HTTP se pospone explícitamente por la restricción del entorno, sin alterar la política.
 - **Commit:** `feat(incidents): registrar incidencias por servicio`
+
+## Paso 14 — Aplicar transiciones y consultar historial
+- **Fecha:** 2026-10-27
+- **Modo:** Agent
+- **Checklist:** V2 · **Criterios:** C09, C10
+- **Qué se hizo:**
+  - Implementadas las transiciones aprobadas, incluida la reapertura desde `resuelta`; `cerrada` permanece terminal.
+  - Cada cambio de estado y de área registra autor, valor anterior/nuevo y marca UTC en la misma transacción SQLite que actualiza la incidencia.
+  - Añadida la consulta de ficha con historial cronológico y campos de auditoría.
+  - Añadidas pruebas de transiciones permitidas/prohibidas, cierre, reasignación, ficha, autor, UTC y rollback si falla la escritura del evento.
+- **Archivos:**
+  - `services/api/incidents.py` — transiciones, reasignación y consulta de ficha/historial
+  - `services/api/models.py` — modelo compuesto `IncidentDetails`
+  - `services/api/tests/test_incidents.py` — pruebas de ciclo, trazabilidad y atomicidad
+  - `services/api/README.es.md`, `services/api/README.md` — documentación bilingüe de los casos de uso y la limitación HTTP
+  - `memory-bank/estado-actual.md` — avance y siguiente paso
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 02-guias-bilingues, 03-paquetes-y-recursos-compartidos, 04-nombres-camel-case.
+- **Decisiones y pendientes:** la ficha e historial están disponibles como caso de uso SQLite; no hay endpoint HTTP mientras no pueda añadirse FastAPI respetando la exclusión de `uv.lock`.
+- **Desviaciones evitadas:** ninguna.
+- **Cambios respecto al plan:** ninguno en el comportamiento de dominio; la exposición HTTP continúa pospuesta conforme a la restricción registrada en el Paso 13.
+- **Commit:** `feat(incidents): trazar cambios y consultar ficha`

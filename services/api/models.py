@@ -31,6 +31,12 @@ class HistoryEvent:
     createdAt: datetime
 
 
+@dataclass(frozen=True, slots=True)
+class IncidentDetails:
+    incident: Incident
+    historyEvents: tuple[HistoryEvent, ...]
+
+
 def generateId() -> str:
     return str(uuid4())
 
