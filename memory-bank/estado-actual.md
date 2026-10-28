@@ -35,13 +35,14 @@
 - Paso 06, T-02: `parseQuantity` y `formatQuantity` en `services/api/inventory.py`; 44 pruebas pasan; commit `0a71518`.
 - Paso 06, T-03: tablas `inventoryItems` e `inventoryLots` en `initializeDatabase`; 49 pruebas pasan; commit `806c8d1`.
 - Paso 06, T-04: tabla `stockMovements` con `CHECK` de signo y motivo, clave foránea compuesta y triggers de solo añadir; 57 pruebas pasan; commit `b6644dd`.
-- Paso 06, T-05: trigger de stock no negativo de artículo y lote, con `stockDeltaSql` compartido; 60 pruebas pasan; pendiente de commit.
+- Paso 06, T-05: trigger de stock no negativo de artículo y lote, con `stockDeltaSql` compartido; 60 pruebas pasan; commit `e3a3374`.
+- Paso 06, T-06: trigger que impide cambiar local, categoría o unidad de un artículo con movimientos; la baja ya la impedía la clave foránea; 63 pruebas pasan; pendiente de commit.
 
 ## En curso
-- Paso 06 del inventario: T-05 hecha, a la espera de tu `OK commit`.
+- Paso 06 del inventario: T-06 hecha, a la espera de tu `OK commit`.
 
 ## Siguiente
-- Paso 06 del inventario (modo Agent): T-06 (triggers de artículo con movimientos), con tests primero.
+- Paso 06 del inventario (modo Agent): T-07 (`calculateStock` y modelos), con tests primero.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.

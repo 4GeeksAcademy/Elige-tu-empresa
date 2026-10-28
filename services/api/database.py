@@ -187,6 +187,18 @@ def initializeDatabase(connection: sqlite3.Connection) -> None:
         END
         """,
         """
+        CREATE TRIGGER IF NOT EXISTS inventoryItems_preventStructuralChangeWithMovements
+        BEFORE UPDATE ON inventoryItems
+        WHEN (
+            NEW.locationId IS NOT OLD.locationId
+            OR NEW.category IS NOT OLD.category
+            OR NEW.unitOfMeasure IS NOT OLD.unitOfMeasure
+        ) AND EXISTS (SELECT 1 FROM stockMovements WHERE itemId = OLD.id)
+        BEGIN
+            SELECT RAISE(ABORT, 'Item has movements: location, category and unit cannot change');
+        END
+        """,
+        """
         CREATE TRIGGER IF NOT EXISTS stockMovements_preventUpdate
         BEFORE UPDATE ON stockMovements
         BEGIN

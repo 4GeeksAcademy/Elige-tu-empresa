@@ -327,5 +327,45 @@ class StockFloorTriggerTests(InventorySchemaTestCase):
         self.insertMovement(self.itemId, lotCode="lotA", movementType="outbound", quantityMilli=3000, reason="sale")
 
 
+class ItemWithMovementsTriggerTests(InventorySchemaTestCase):
+    def testInv006SqlRejectsStructuralChangeWithMovements(self) -> None:
+        itemId = self.insertItem()
+        self.insertMovement(itemId)
+        for column, value in (
+            ("locationId", "laArepita"),
+            ("category", "beverages"),
+            ("unitOfMeasure", "l"),
+        ):
+            with self.subTest(column=column):
+                with self.assertRaisesRegex(sqlite3.IntegrityError, "movements"):
+                    self.connection.execute(f"UPDATE inventoryItems SET {column} = ? WHERE id = ?", (value, itemId))
+        self.connection.execute(
+            "UPDATE inventoryItems SET name = 'Cilantro fresco', reorderPointMilli = 3000, locationId = 'queChille' WHERE id = ?",
+            (itemId,),
+        )
+        row = self.connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (itemId,)).fetchone()
+        self.assertEqual((row["name"], row["reorderPointMilli"], row["locationId"]), ("Cilantro fresco", 3000, "queChille"))
+
+    def testInv006SqlAllowsStructuralChangeWithoutMovements(self) -> None:
+        itemId = self.insertItem()
+        self.connection.execute(
+            "UPDATE inventoryItems SET locationId = 'laArepita', category = 'beverages', unitOfMeasure = 'l' WHERE id = ?",
+            (itemId,),
+        )
+        row = self.connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (itemId,)).fetchone()
+        self.assertEqual((row["locationId"], row["category"], row["unitOfMeasure"]), ("laArepita", "beverages", "l"))
+
+    def testInv008SqlRejectsDeleteOfItemWithMovements(self) -> None:
+        itemId = self.insertItem()
+        emptyItemId = self.insertItem(name="Desengrasante")
+        self.insertMovement(itemId)
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute("DELETE FROM inventoryItems WHERE id = ?", (itemId,))
+        self.connection.execute("DELETE FROM inventoryItems WHERE id = ?", (emptyItemId,))
+        remaining = {row["id"] for row in self.connection.execute("SELECT id FROM inventoryItems")}
+        self.assertEqual(remaining, {itemId})
+        self.assertEqual(self.connection.execute("SELECT COUNT(*) FROM stockMovements").fetchone()[0], 1)
+
+
 if __name__ == "__main__":
     unittest.main()

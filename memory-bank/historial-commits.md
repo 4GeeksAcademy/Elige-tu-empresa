@@ -694,3 +694,24 @@
 - **Desviaciones evitadas:** 05 → solo T-05; sin `calculateStock` todavía.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): impedir stock negativo desde la base de datos`
+
+## Paso 06 (inventario) — T-06 Artículos con movimientos en la base de datos
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-06 · **Criterios:** INV-006, INV-008
+- **Qué se hizo:**
+  - Escritos primero tres tests «Sql» en `test_inventory.py`: cambio estructural rechazado con movimientos, permitido sin ellos, y baja rechazada con movimientos.
+  - Antes de implementar fallaron los tres subcasos de cambio estructural; la baja ya pasaba porque la clave foránea `stockMovements.itemId` (T-04) la impide sin `ON DELETE`.
+  - Añadido el trigger `inventoryItems_preventStructuralChangeWithMovements`: aborta un `UPDATE` que cambia `locationId`, `category` o `unitOfMeasure` de un artículo con movimientos. Un `UPDATE` que repite el mismo valor o que solo cambia `name` o `reorderPointMilli` pasa (PD-08).
+  - Suite completa: 63 pruebas pasan.
+- **Archivos:**
+  - `services/api/database.py` — trigger
+  - `services/api/tests/test_inventory.py` — tests de T-06
+  - `specs/inventory-manager/tasks.md` — T-06 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** repetir el valor actual de un campo estructural no se considera cambio en la base; si el caso de uso de T-09 debe rechazarlo, se decide allí con su test.
+- **Desviaciones evitadas:** 05 → solo T-06; el rechazo con su tipo lo darán `updateItem` y `deleteItem`.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): proteger artículos con movimientos en la base de datos`
