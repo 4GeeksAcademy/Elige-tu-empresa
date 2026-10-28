@@ -27,13 +27,14 @@
 
 ## Hecho (gestor de inventario, SDD)
 - Paso 01: arranque del encargo. Encargo anterior archivado en `registro/encargo-incidencias.md`, nuevo `encargo.md`, `AGENTS.md` y `memory-bank/README.md` actualizados; commit `2dd43a5`.
-- Paso 02: regla `05-desarrollo-guiado-por-spec` creada y `04-nombres-camel-case` ampliada con los valores de catálogo del briefing (en parada, sin commitear).
+- Paso 02: regla `05-desarrollo-guiado-por-spec` creada y `04-nombres-camel-case` ampliada con los valores de catálogo del briefing; commit `9208abc`.
+- Paso 03: `specs/inventory-manager/spec.md` v1.0 (INV-001–INV-066) aprobado por el usuario el 2026-10-28 con P-01–P-08 validadas; pendiente de commit.
 
 ## En curso
-- Paso 02 del inventario: en parada, a la espera del `OK commit`.
+- Paso 03 del inventario: a la espera del `OK commit`.
 
 ## Siguiente
-- Paso 03 del inventario (modo Agent): escribir `specs/inventory-manager/spec.md` v1.0 en borrador y parar para su aprobación.
+- Paso 04 del inventario (modo Agent): escribir `specs/inventory-manager/plan.md` v1.0 y parar para su aprobación.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
@@ -52,6 +53,7 @@
 | 2026-10-27 | 19a | Sustituir FastAPI por `http.server` de biblioteca estándar; no añadir dependencias ni acceder a `uv.lock`; servir API JSON y backoffice estático desde el mismo origen |
 | 2026-10-27 | 19b | API y backoffice se implementan y prueban con biblioteca estándar; sin autenticación, el autor se introduce manualmente y el servidor escucha en loopback por defecto |
 | 2026-10-28 | 01 (inventario) | `company-BRIEFING.md` no existe: el usuario decide usar `CONTEXT.md` como briefing y reconciliar los huecos |
+| 2026-10-28 | 03 (inventario) | Spec v1.0 aprobado: P-01 sin campos extra; P-02–P-07 según la propuesta del agente; P-08, solo los 4 locales del encargo |
 | 2026-10-28 | 01 (inventario) | No existe la rama `main` (ni local ni remota): el usuario da por válido `6260bb2` (merge del PR #1) como base |
 
 ## Pendientes

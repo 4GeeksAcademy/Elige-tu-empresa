@@ -532,3 +532,22 @@
 - **Desviaciones evitadas:** ninguna.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `docs(rules): añadir regla de desarrollo guiado por spec`
+
+## Paso 03 (inventario) — Spec v1.0
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** spec v1.0 · **Criterios:** INV-001–INV-066
+- **Qué se hizo:**
+  - Leído `CONTEXT.md` completo: no contiene el dominio del inventario, así que el spec se apoya en el §4 del encargo y marca los huecos como `pendiente`.
+  - Escrito `specs/inventory-manager/spec.md` con la plantilla §7.1: 66 criterios EARS, contratos de ocho operaciones, invariantes, decisiones D-01–D-17 y pendientes P-01–P-08.
+  - Comprobado con un script que los IDs INV-001–INV-066 no tienen huecos ni repeticiones y que el spec no usa palabras vagas.
+  - El usuario aprueba el spec: P-01 sin campos extra, P-02–P-07 según la propuesta y P-08 con los 4 locales. Estado `aprobado` y P-01–P-08 como `validada 2026-10-28`.
+- **Archivos:**
+  - `specs/inventory-manager/spec.md` — el qué
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** P-01–P-08 resueltas por el usuario (ver arriba); sin pendientes del spec.
+- **Desviaciones evitadas:** 05 → no se ha escrito plan ni código antes de aprobar el spec.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(specs): redactar y aprobar spec v1.0 del gestor de inventario`
