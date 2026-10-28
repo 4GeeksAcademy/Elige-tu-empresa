@@ -37,7 +37,7 @@ def _transaction(connection: sqlite3.Connection):
 def _decimalsFor(unitOfMeasure: str) -> int:
     try:
         return unitDecimals[unitOfMeasure]
-    except KeyError as error:
+    except (KeyError, TypeError) as error:
         raise ValueError(f"Unknown unit: {unitOfMeasure}") from error
 
 
@@ -100,12 +100,16 @@ def calculateStock(
     return {row["itemId"]: row["stock"] for row in rows}
 
 
-def _validatedItemFields(fields: dict) -> dict:
+def _requireSupportedFields(fields: dict) -> None:
     if not isinstance(fields, dict):
         raise ValueError("Item fields must be an object")
     unsupported = fields.keys() - itemFieldNames
     if unsupported:
         raise ValueError(f"Unsupported fields: {', '.join(sorted(unsupported))}")
+
+
+def _validatedItemFields(fields: dict) -> dict:
+    _requireSupportedFields(fields)
     missing = itemFieldNames - fields.keys()
     if missing:
         raise ValueError(f"Missing required fields: {', '.join(sorted(missing))}")
@@ -169,3 +173,53 @@ def createItem(connection: sqlite3.Connection, fields: dict, now: datetime | Non
         )
         row = connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (itemId,)).fetchone()
         return _itemView(connection, row)
+
+
+def _fetchItemRow(connection: sqlite3.Connection, itemId: str) -> sqlite3.Row:
+    row = connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (itemId,)).fetchone()
+    if row is None:
+        raise LookupError("Item not found")
+    return row
+
+
+def _hasMovements(connection: sqlite3.Connection, itemId: str) -> bool:
+    return connection.execute("SELECT 1 FROM stockMovements WHERE itemId = ? LIMIT 1", (itemId,)).fetchone() is not None
+
+
+def updateItem(connection: sqlite3.Connection, itemId: str, changes: dict) -> dict:
+    _requireSupportedFields(changes)
+    if not changes:
+        raise ValueError("No fields to update")
+    with _transaction(connection):
+        row = _fetchItemRow(connection, itemId)
+        merged = {
+            "name": row["name"],
+            "locationId": row["locationId"],
+            "category": row["category"],
+            "unitOfMeasure": row["unitOfMeasure"],
+            **changes,
+        }
+        if "reorderPoint" not in changes:
+            merged["reorderPoint"] = formatQuantity(row["reorderPointMilli"], merged["unitOfMeasure"])
+        validated = _validatedItemFields(merged)
+        structuralChange = any(
+            validated[fieldName] != row[fieldName] for fieldName in ("locationId", "category", "unitOfMeasure")
+        )
+        if structuralChange and _hasMovements(connection, itemId):
+            raise BusinessRuleError("locationId, category and unitOfMeasure cannot change once the item has movements")
+        connection.execute(
+            """
+            UPDATE inventoryItems
+            SET name = ?, locationId = ?, category = ?, unitOfMeasure = ?, reorderPointMilli = ?
+            WHERE id = ?
+            """,
+            (
+                validated["name"],
+                validated["locationId"],
+                validated["category"],
+                validated["unitOfMeasure"],
+                validated["reorderPointMilli"],
+                itemId,
+            ),
+        )
+        return _itemView(connection, _fetchItemRow(connection, itemId))

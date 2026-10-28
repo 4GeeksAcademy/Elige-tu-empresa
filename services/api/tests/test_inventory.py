@@ -4,7 +4,14 @@ from datetime import datetime, timezone
 
 from services.api.catalogs import catalogIds, catalogs, inventoryCatalogs
 from services.api.database import createConnection, initializeDatabase, stockDeltaSql
-from services.api.inventory import calculateStock, createItem, formatQuantity, parseQuantity
+from services.api.inventory import (
+    BusinessRuleError,
+    calculateStock,
+    createItem,
+    formatQuantity,
+    parseQuantity,
+    updateItem,
+)
 from services.api.models import formatUtcTimestamp, generateId, isUuid4, utcNow
 
 
@@ -529,6 +536,110 @@ class CreateItemTests(InventorySchemaTestCase):
                 with self.assertRaisesRegex(ValueError, "Unsupported"):
                     createItem(self.connection, self.validFields(**{fieldName: "5"}), now=self.fixedNow)
         self.assertEqual(self.itemCount(), 0)
+
+
+class UpdateItemTests(InventorySchemaTestCase):
+    fixedNow = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+    def createBaseItem(self, **overrides: object) -> dict:
+        fields = {
+            "name": "Cilantro",
+            "locationId": "queChille",
+            "category": "produce",
+            "unitOfMeasure": "kg",
+            "reorderPoint": "2",
+        }
+        fields.update(overrides)
+        return createItem(self.connection, fields, now=self.fixedNow)
+
+    def storedItem(self, itemId: str) -> dict:
+        return dict(self.connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (itemId,)).fetchone())
+
+    def testInv004EditsNameAndReorderPointWithMovements(self) -> None:
+        item = self.createBaseItem()
+        self.insertMovement(item["id"], quantityMilli=4000)
+        updated = updateItem(self.connection, item["id"], {"name": " Cilantro fresco ", "reorderPoint": "3.5"})
+        self.assertEqual((updated["name"], updated["reorderPoint"], updated["stock"]), ("Cilantro fresco", "3.500", "4.000"))
+        self.assertEqual(updated["needsReorder"], False)
+        stored = self.storedItem(item["id"])
+        self.assertEqual((stored["name"], stored["reorderPointMilli"]), ("Cilantro fresco", 3500))
+
+    def testInv005EditsStructuralFieldsWithoutMovements(self) -> None:
+        item = self.createBaseItem()
+        updated = updateItem(
+            self.connection,
+            item["id"],
+            {"locationId": "laArepita", "category": "beverages", "unitOfMeasure": "l"},
+        )
+        self.assertEqual(
+            (updated["locationId"], updated["category"], updated["unitOfMeasure"], updated["reorderPoint"]),
+            ("laArepita", "beverages", "l", "2.000"),
+        )
+        self.assertEqual(self.storedItem(item["id"])["locationId"], "laArepita")
+
+    def testInv006RejectsStructuralChangeWithMovements(self) -> None:
+        item = self.createBaseItem()
+        self.insertMovement(item["id"])
+        for changes in (
+            {"locationId": "laArepita"},
+            {"category": "meat"},
+            {"unitOfMeasure": "l"},
+            {"name": "Otro nombre", "category": "meat"},
+        ):
+            with self.subTest(changes=changes):
+                with self.assertRaises(BusinessRuleError):
+                    updateItem(self.connection, item["id"], changes)
+        stored = self.storedItem(item["id"])
+        self.assertEqual((stored["name"], stored["locationId"], stored["category"], stored["unitOfMeasure"]), ("Cilantro", "queChille", "produce", "kg"))
+        repeated = updateItem(self.connection, item["id"], {"locationId": "queChille", "name": "Cilantro 2"})
+        self.assertEqual(repeated["name"], "Cilantro 2")
+
+    def testInv002RejectsInvalidValuesOnEdit(self) -> None:
+        item = self.createBaseItem()
+        for changes in (
+            {"name": ""},
+            {"name": "   "},
+            {"name": 5},
+            {"locationId": "unknown"},
+            {"category": "unknown"},
+            {"unitOfMeasure": "lb"},
+        ):
+            with self.subTest(changes=changes):
+                with self.assertRaises(ValueError):
+                    updateItem(self.connection, item["id"], changes)
+        self.assertEqual(self.storedItem(item["id"])["name"], "Cilantro")
+
+    def testInv003RejectsInvalidReorderPointOnEdit(self) -> None:
+        item = self.createBaseItem(reorderPoint="2.5")
+        for changes in (
+            {"reorderPoint": "-1"},
+            {"reorderPoint": "1.0005"},
+            {"reorderPoint": 5},
+            {"unitOfMeasure": "unit"},
+            {"unitOfMeasure": "unit", "reorderPoint": "2.5"},
+        ):
+            with self.subTest(changes=changes):
+                with self.assertRaises(ValueError):
+                    updateItem(self.connection, item["id"], changes)
+        self.assertEqual(self.storedItem(item["id"])["reorderPointMilli"], 2500)
+        converted = updateItem(self.connection, item["id"], {"unitOfMeasure": "unit", "reorderPoint": "3"})
+        self.assertEqual((converted["unitOfMeasure"], converted["reorderPoint"]), ("unit", "3"))
+
+    def testInv038RejectsStockFieldOnEdit(self) -> None:
+        item = self.createBaseItem()
+        for fieldName in ("stock", "quantity", "stockMilli", "availableStock"):
+            with self.subTest(fieldName=fieldName):
+                with self.assertRaisesRegex(ValueError, "Unsupported"):
+                    updateItem(self.connection, item["id"], {"name": "Otro", fieldName: "5"})
+        with self.assertRaisesRegex(ValueError, "No fields"):
+            updateItem(self.connection, item["id"], {})
+        self.assertEqual(self.storedItem(item["id"])["name"], "Cilantro")
+
+    def testInv009RejectsEditOfUnknownItem(self) -> None:
+        with self.assertRaises(LookupError):
+            updateItem(self.connection, generateId(), {"name": "Otro"})
+        with self.assertRaises(LookupError):
+            updateItem(self.connection, "not-a-uuid", {"name": "Otro"})
 
 
 if __name__ == "__main__":

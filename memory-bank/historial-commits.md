@@ -760,3 +760,26 @@
 - **Desviaciones evitadas:** 05 → solo T-08; sin `updateItem` ni listado.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): dar de alta artículos de inventario`
+
+## Paso 06 (inventario) — T-09 Edición de artículo
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-09 · **Criterios:** INV-002, INV-003, INV-004, INV-005, INV-006, INV-009, INV-038
+- **Qué se hizo:**
+  - Escritos primero siete tests en `test_inventory.py`; fallaban por falta de `updateItem`.
+  - Añadido `updateItem(connection, itemId, changes)` en `inventory.py`: comprueba las claves permitidas y que haya cambios, localiza el artículo (`LookupError` si no existe), valida el conjunto resultante con la misma validación del alta, rechaza con `BusinessRuleError` el cambio real de `locationId`, `category` o `unitOfMeasure` si hay movimientos, y actualiza todo en una transacción.
+  - Repetir el valor actual de un campo estructural con movimientos se acepta, igual que en el trigger de T-06.
+  - Cambiar la unidad convierte el `reorderPoint` existente a la precisión de la unidad nueva y se rechaza como datos inválidos si no cabe (por ejemplo, `2.500` pasando a `unit`).
+  - Un fallo real en mi primera versión (formateaba el `reorderPoint` anterior aunque llegara uno nuevo) se detectó con el test de INV-003 y se corrigió; `_decimalsFor` también captura `TypeError` para unidades no textuales.
+  - Suite completa: 80 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — `updateItem` y ayudantes
+  - `services/api/tests/test_inventory.py` — tests de T-09
+  - `specs/inventory-manager/tasks.md` — T-09 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** orden de validación en la edición: claves, existencia del artículo, valores y regla de negocio; así los valores se validan con la unidad real del artículo.
+- **Desviaciones evitadas:** 05 → solo T-09.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): editar artículos de inventario`
