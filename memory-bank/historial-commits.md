@@ -590,3 +590,24 @@
 - **Desviaciones evitadas:** 05 → ningún código antes de aprobar las tareas.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `docs(specs): redactar tareas v1.0 del gestor de inventario`
+
+## Paso 06 (inventario) — T-01 Catálogos del inventario
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-01 · **Criterios:** INV-002, INV-015, INV-022
+- **Qué se hizo:**
+  - Escritos primero cuatro tests en `services/api/tests/test_inventory.py`; fallaban por falta de `inventoryCatalogs`.
+  - Añadidos `units`, `categories`, `movementTypes`, `adjustmentReasons` y `locations` en `catalogs.py`, agrupados en `inventoryCatalogs`; `catalogIds` busca en los dos diccionarios y `/api/catalogs` no cambia (PD-13).
+  - Los valores de catálogo van literales; las etiquetas de unidades, categorías, tipos y motivos repiten su valor porque el spec no define otras; las de locales salen del §3 del spec.
+  - Suite completa: 39 pruebas pasan (35 de incidencias y 4 nuevas).
+- **Archivos:**
+  - `services/api/catalogs.py` — catálogos del inventario
+  - `services/api/tests/test_inventory.py` — tests de T-01
+  - `specs/inventory-manager/tasks.md` — T-01 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** ninguna.
+- **Desviaciones evitadas:** 04 → valores de catálogo literales (`sauces_condiments`, `count_correction`); 05 → solo T-01.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): añadir catálogos del inventario`

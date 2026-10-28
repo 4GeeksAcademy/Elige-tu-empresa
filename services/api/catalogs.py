@@ -57,10 +57,54 @@ catalogs = {
     "statuses": statuses,
 }
 
+units = (
+    CatalogEntry("kg", "kg"),
+    CatalogEntry("g", "g"),
+    CatalogEntry("l", "l"),
+    CatalogEntry("ml", "ml"),
+    CatalogEntry("unit", "unit"),
+)
+
+categories = (
+    CatalogEntry("meat", "meat"),
+    CatalogEntry("produce", "produce"),
+    CatalogEntry("sauces_condiments", "sauces_condiments"),
+    CatalogEntry("beverages", "beverages"),
+    CatalogEntry("packaging", "packaging"),
+    CatalogEntry("cleaning_supplies", "cleaning_supplies"),
+)
+
+movementTypes = (
+    CatalogEntry("inbound", "inbound"),
+    CatalogEntry("outbound", "outbound"),
+    CatalogEntry("adjustment", "adjustment"),
+)
+
+adjustmentReasons = (
+    CatalogEntry("waste", "waste"),
+    CatalogEntry("theft", "theft"),
+    CatalogEntry("count_correction", "count_correction"),
+)
+
+locations = (
+    CatalogEntry("laArepita", "La Arepita (Colombia)"),
+    CatalogEntry("queChille", "QueChille (Colombia)"),
+    CatalogEntry("theBigSauce", "The BigSauce (Estados Unidos, Florida)"),
+    CatalogEntry("chilliBeans", "ChilliBeans (Estados Unidos, Florida)"),
+)
+
+inventoryCatalogs = {
+    "units": units,
+    "categories": categories,
+    "movementTypes": movementTypes,
+    "adjustmentReasons": adjustmentReasons,
+    "locations": locations,
+}
+
 
 def catalogIds(catalogName: str, assignableOnly: bool = False) -> tuple[str, ...]:
     try:
-        entries = catalogs[catalogName]
+        entries = {**catalogs, **inventoryCatalogs}[catalogName]
     except KeyError as error:
         raise ValueError(f"Unknown catalog: {catalogName}") from error
 
