@@ -783,3 +783,25 @@
 - **Desviaciones evitadas:** 05 → solo T-09.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): editar artículos de inventario`
+
+## Paso 06 (inventario) — T-10 Baja de artículo
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-10 · **Criterios:** INV-007, INV-008, INV-009
+- **Qué se hizo:**
+  - Escritos tres tests en `test_inventory.py` (baja sin movimientos, rechazo con movimientos conservándolos, artículo inexistente).
+  - Añadido `deleteItem(connection, itemId)` en `inventory.py`: localiza el artículo (`LookupError`), rechaza con `BusinessRuleError` si tiene movimientos y, si no, lo borra y devuelve `{"deleted": id}`, todo en una transacción.
+  - Dos tests fallaron al principio por un defecto de mis ayudantes de test: los `INSERT` directos dejaban abierta una transacción y `deleteItem` se unía a ella sin confirmar. Los ayudantes `insertItem`, `insertLot` e `insertMovement` ahora confirman.
+  - Lancé tests e implementación en paralelo y no vi el estado rojo limpio; lo comprobé después sustituyendo `deleteItem` por un stub: 3 errores. Con la implementación real, verde.
+  - Suite completa: 83 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — `deleteItem`
+  - `services/api/tests/test_inventory.py` — tests de T-10 y ayudantes que confirman
+  - `specs/inventory-manager/tasks.md` — T-10 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** una transacción abierta por quien llama se respeta: los casos de uso se unen a ella y no la confirman (PD-11); en las pruebas, los ayudantes deben confirmar.
+- **Desviaciones evitadas:** 05 → solo T-10.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): dar de baja artículos sin movimientos`

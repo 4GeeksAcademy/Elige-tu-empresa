@@ -8,6 +8,7 @@ from services.api.inventory import (
     BusinessRuleError,
     calculateStock,
     createItem,
+    deleteItem,
     formatQuantity,
     parseQuantity,
     updateItem,
@@ -140,6 +141,7 @@ class InventorySchemaTestCase(unittest.TestCase):
             """,
             values,
         )
+        self.connection.commit()
         return values["id"]
 
     def insertLot(self, itemId: str, **overrides: object) -> str:
@@ -157,6 +159,7 @@ class InventorySchemaTestCase(unittest.TestCase):
             """,
             values,
         )
+        self.connection.commit()
         return values["lotCode"]
 
     def insertMovement(self, itemId: str, **overrides: object) -> str:
@@ -178,6 +181,7 @@ class InventorySchemaTestCase(unittest.TestCase):
             """,
             values,
         )
+        self.connection.commit()
         return values["id"]
 
 
@@ -640,6 +644,34 @@ class UpdateItemTests(InventorySchemaTestCase):
             updateItem(self.connection, generateId(), {"name": "Otro"})
         with self.assertRaises(LookupError):
             updateItem(self.connection, "not-a-uuid", {"name": "Otro"})
+
+
+class DeleteItemTests(InventorySchemaTestCase):
+    def testInv007DeletesItemWithoutMovements(self) -> None:
+        itemId = self.insertItem()
+        otherItemId = self.insertItem(name="Cebolla cabezona")
+        self.assertEqual(deleteItem(self.connection, itemId), {"deleted": itemId})
+        remaining = {row["id"] for row in self.connection.execute("SELECT id FROM inventoryItems")}
+        self.assertEqual(remaining, {otherItemId})
+        self.assertFalse(self.connection.in_transaction)
+
+    def testInv008RejectsDeleteWithMovementsAndKeepsThem(self) -> None:
+        itemId = self.insertItem()
+        self.insertMovement(itemId, quantityMilli=4000)
+        with self.assertRaises(BusinessRuleError):
+            deleteItem(self.connection, itemId)
+        self.assertEqual(self.connection.execute("SELECT COUNT(*) FROM inventoryItems").fetchone()[0], 1)
+        self.assertEqual(calculateStock(self.connection, itemId=itemId), {itemId: 4000})
+        self.assertFalse(self.connection.in_transaction)
+
+    def testInv009RejectsDeleteOfUnknownItem(self) -> None:
+        itemId = self.insertItem()
+        with self.assertRaises(LookupError):
+            deleteItem(self.connection, generateId())
+        with self.assertRaises(LookupError):
+            deleteItem(self.connection, "not-a-uuid")
+        self.assertEqual(self.connection.execute("SELECT COUNT(*) FROM inventoryItems").fetchone()[0], 1)
+        self.assertEqual(self.connection.execute("SELECT id FROM inventoryItems").fetchone()["id"], itemId)
 
 
 if __name__ == "__main__":

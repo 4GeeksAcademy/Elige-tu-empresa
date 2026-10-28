@@ -223,3 +223,12 @@ def updateItem(connection: sqlite3.Connection, itemId: str, changes: dict) -> di
             ),
         )
         return _itemView(connection, _fetchItemRow(connection, itemId))
+
+
+def deleteItem(connection: sqlite3.Connection, itemId: str) -> dict:
+    with _transaction(connection):
+        _fetchItemRow(connection, itemId)
+        if _hasMovements(connection, itemId):
+            raise BusinessRuleError("An item with movements cannot be deleted")
+        connection.execute("DELETE FROM inventoryItems WHERE id = ?", (itemId,))
+    return {"deleted": itemId}
