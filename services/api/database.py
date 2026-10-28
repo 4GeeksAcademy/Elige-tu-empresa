@@ -14,6 +14,14 @@ def _catalogCheck(columnName: str, values: tuple[str, ...]) -> str:
     return f"{columnName} TEXT NOT NULL CHECK ({columnName} IN ({_sqlValues(values)}))"
 
 
+def stockDeltaSql(columnPrefix: str = "") -> str:
+    """SQL expression for the signed effect of one movement on stock."""
+    return (
+        f"CASE {columnPrefix}movementType WHEN 'outbound' "
+        f"THEN -{columnPrefix}quantityMilli ELSE {columnPrefix}quantityMilli END"
+    )
+
+
 def createConnection(databasePath: str | PathLike[str]) -> sqlite3.Connection:
     connection = sqlite3.connect(str(databasePath))
     connection.row_factory = sqlite3.Row
@@ -155,6 +163,28 @@ def initializeDatabase(connection: sqlite3.Connection) -> None:
         """
         CREATE INDEX IF NOT EXISTS stockMovementsItemIdLotCode
         ON stockMovements (itemId, lotCode)
+        """,
+        f"""
+        CREATE TRIGGER IF NOT EXISTS stockMovements_preventNegativeStock
+        BEFORE INSERT ON stockMovements
+        BEGIN
+            SELECT RAISE(ABORT, 'Item stock cannot be negative')
+            WHERE COALESCE(
+                (
+                    SELECT SUM({stockDeltaSql()}) FROM stockMovements
+                    WHERE itemId = NEW.itemId
+                ),
+                0
+            ) + {stockDeltaSql("NEW.")} < 0;
+            SELECT RAISE(ABORT, 'Lot stock cannot be negative')
+            WHERE NEW.lotCode IS NOT NULL AND COALESCE(
+                (
+                    SELECT SUM({stockDeltaSql()}) FROM stockMovements
+                    WHERE itemId = NEW.itemId AND lotCode = NEW.lotCode
+                ),
+                0
+            ) + {stockDeltaSql("NEW.")} < 0;
+        END
         """,
         """
         CREATE TRIGGER IF NOT EXISTS stockMovements_preventUpdate

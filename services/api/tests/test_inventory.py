@@ -292,5 +292,40 @@ class StockMovementSchemaTests(InventorySchemaTestCase):
             self.connection.execute("DELETE FROM stockMovements WHERE id = ?", (movementId,))
 
 
+class StockFloorTriggerTests(InventorySchemaTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.itemId = self.insertItem()
+
+    def testInv023SqlRejectsOutboundBelowZero(self) -> None:
+        self.insertMovement(self.itemId, quantityMilli=5000)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "negative"):
+            self.insertMovement(self.itemId, movementType="outbound", quantityMilli=5001, reason="sale")
+        self.insertMovement(self.itemId, movementType="outbound", quantityMilli=5000, reason="sale")
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "negative"):
+            self.insertMovement(self.itemId, movementType="outbound", quantityMilli=1, reason="sale")
+        self.assertEqual(self.connection.execute("SELECT COUNT(*) FROM stockMovements").fetchone()[0], 2)
+
+    def testInv024SqlRejectsAdjustmentBelowZero(self) -> None:
+        self.insertMovement(self.itemId, quantityMilli=1000)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "negative"):
+            self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=-1001, reason="waste")
+        self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=-1000, reason="waste")
+        self.assertEqual(self.connection.execute("SELECT COUNT(*) FROM stockMovements").fetchone()[0], 2)
+
+    def testInv034SqlRejectsLotBelowZero(self) -> None:
+        self.insertLot(self.itemId, lotCode="lotA")
+        self.insertLot(self.itemId, lotCode="lotB")
+        self.insertMovement(self.itemId, lotCode="lotA", quantityMilli=3000)
+        self.insertMovement(self.itemId, lotCode="lotB", quantityMilli=3000)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "Lot stock"):
+            self.insertMovement(self.itemId, lotCode="lotA", movementType="outbound", quantityMilli=3001, reason="sale")
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "Lot stock"):
+            self.insertMovement(
+                self.itemId, lotCode="lotB", movementType="adjustment", quantityMilli=-3001, reason="waste"
+            )
+        self.insertMovement(self.itemId, lotCode="lotA", movementType="outbound", quantityMilli=3000, reason="sale")
+
+
 if __name__ == "__main__":
     unittest.main()

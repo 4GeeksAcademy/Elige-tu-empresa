@@ -673,3 +673,24 @@
 - **Desviaciones evitadas:** 05 → solo T-04; el stock no negativo se deja para T-05.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): crear tabla de movimientos de solo añadir`
+
+## Paso 06 (inventario) — T-05 Stock no negativo en la base de datos
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-05 · **Criterios:** INV-023, INV-024, INV-034
+- **Qué se hizo:**
+  - Escritos primero tres tests «Sql» en `test_inventory.py`; fallaban porque ningún trigger lo impedía.
+  - Añadida en `database.py` la función `stockDeltaSql`, el único fragmento SQL con el signo de cada tipo de movimiento (`outbound` negativo, el resto con su cantidad), y el trigger `stockMovements_preventNegativeStock`, que aborta un `INSERT` si el stock del artículo o el del lote quedaría por debajo de cero (PD-05, PD-06).
+  - `calculateStock` (T-07) reutilizará `stockDeltaSql`, de modo que la regla de signo vive en un solo sitio.
+  - Suite completa: 60 pruebas pasan.
+- **Archivos:**
+  - `services/api/database.py` — `stockDeltaSql` y trigger
+  - `services/api/tests/test_inventory.py` — tests de T-05
+  - `specs/inventory-manager/tasks.md` — T-05 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el trigger es la defensa; el rechazo con su tipo (regla de negocio) lo dará `registerMovement` en T-13 y T-14.
+- **Desviaciones evitadas:** 05 → solo T-05; sin `calculateStock` todavía.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): impedir stock negativo desde la base de datos`
