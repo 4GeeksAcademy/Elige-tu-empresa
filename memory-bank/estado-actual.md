@@ -26,13 +26,14 @@
 - Paso 19b: API JSON y backoffice estático implementados y verificados; 35 pruebas pasan.
 
 ## Hecho (gestor de inventario, SDD)
-- Paso 01: arranque del encargo. Encargo anterior archivado en `registro/encargo-incidencias.md`, nuevo `encargo.md`, `AGENTS.md` y `memory-bank/README.md` actualizados.
+- Paso 01: arranque del encargo. Encargo anterior archivado en `registro/encargo-incidencias.md`, nuevo `encargo.md`, `AGENTS.md` y `memory-bank/README.md` actualizados; commit `2dd43a5`.
+- Paso 02: regla `05-desarrollo-guiado-por-spec` creada y `04-nombres-camel-case` ampliada con los valores de catálogo del briefing (en parada, sin commitear).
 
 ## En curso
-- Paso 01 del inventario: en parada, a la espera del `OK commit`.
+- Paso 02 del inventario: en parada, a la espera del `OK commit`.
 
 ## Siguiente
-- Paso 02 del inventario (modo Agent): crear la regla `05-desarrollo-guiado-por-spec` y ampliar la `04-nombres-camel-case`.
+- Paso 03 del inventario (modo Agent): escribir `specs/inventory-manager/spec.md` v1.0 en borrador y parar para su aprobación.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.

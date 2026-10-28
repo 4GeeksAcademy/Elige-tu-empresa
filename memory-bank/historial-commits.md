@@ -513,3 +513,22 @@
 - **Desviaciones evitadas:** ninguna.
 - **Cambios respecto al plan:** dos comprobaciones del Paso 01 (rama `main` y `company-BRIEFING.md`) no cuadraban; el usuario las resolvió como se indica arriba.
 - **Commit:** `docs(memory-bank): arrancar encargo del gestor de inventario`
+
+## Paso 02 (inventario) — Reglas para trabajar guiado por el spec
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** — · **Criterios:** —
+- **Qué se hizo:**
+  - Creada la regla `05-desarrollo-guiado-por-spec` (`aplicacion: siempre`) con el orden spec → plan → tareas → código, el formato de `Checklist:` y las comprobaciones con `git log` y `grep`.
+  - Ampliada la regla `04-nombres-camel-case`: los valores de catálogo del briefing se conservan literalmente, con su evidencia.
+  - Probados los comandos de comprobación de la regla 05: se ejecutan y devuelven 0 = 0 porque aún no hay commits de implementación.
+- **Archivos:**
+  - `.agents/rules/05-desarrollo-guiado-por-spec.md` — regla nueva
+  - `.agents/rules/04-nombres-camel-case.md` — línea nueva en "Se hace" y evidencia
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case.
+- **Decisiones y pendientes:** la evidencia de la regla 04 cita «§2 del briefing» según el encargo; `CONTEXT.md` no contiene esa sección y la cita queda anotada como tal.
+- **Desviaciones evitadas:** ninguna.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(rules): añadir regla de desarrollo guiado por spec`
