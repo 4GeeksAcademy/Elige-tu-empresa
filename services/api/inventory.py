@@ -24,7 +24,7 @@ class BusinessRuleError(Exception):
 
 
 @contextmanager
-def _transaction(connection: sqlite3.Connection):
+def transaction(connection: sqlite3.Connection):
     """Open an immediate transaction, or join the one the caller already opened."""
     if connection.in_transaction:
         yield
@@ -197,7 +197,7 @@ def _singleItemView(connection: sqlite3.Connection, itemId: str, now: datetime |
 def createItem(connection: sqlite3.Connection, fields: dict, now: datetime | None = None) -> dict:
     validated = _validatedItemFields(fields)
     itemId = generateId()
-    with _transaction(connection):
+    with transaction(connection):
         connection.execute(
             """
             INSERT INTO inventoryItems (
@@ -232,7 +232,7 @@ def updateItem(connection: sqlite3.Connection, itemId: str, changes: dict) -> di
     _requireSupportedFields(changes)
     if not changes:
         raise ValueError("No fields to update")
-    with _transaction(connection):
+    with transaction(connection):
         row = _fetchItemRow(connection, itemId)
         merged = {
             "name": row["name"],
@@ -268,7 +268,7 @@ def updateItem(connection: sqlite3.Connection, itemId: str, changes: dict) -> di
 
 
 def deleteItem(connection: sqlite3.Connection, itemId: str) -> dict:
-    with _transaction(connection):
+    with transaction(connection):
         _fetchItemRow(connection, itemId)
         if _hasMovements(connection, itemId):
             raise BusinessRuleError("An item with movements cannot be deleted")
@@ -369,7 +369,7 @@ def registerMovement(
         raise ValueError("movementType is not in the movementTypes catalog")
 
     moment = now or utcNow()
-    with _transaction(connection):
+    with transaction(connection):
         itemRow = _fetchItemRow(connection, itemId)
         unitOfMeasure = itemRow["unitOfMeasure"]
         quantityMilli = parseQuantity(fields["quantity"], unitOfMeasure)

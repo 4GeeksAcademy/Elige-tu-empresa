@@ -1,11 +1,18 @@
+import os
+import subprocess
+import sys
+import tempfile
 import unittest
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest import mock
 
 from services.api import inventory
 from services.api.database import createConnection, initializeDatabase
-from services.api.inventory import calculateStock, listItems
-from services.api.inventoryseed import loadInventorySeed
+from services.api.inventory import BusinessRuleError, calculateStock, createItem, listItems
+from services.api.inventoryseed import loadInventorySeed, main
+
+repositoryRoot = Path(__file__).resolve().parents[3]
 
 expectedItems = (
     ("laArepita", "Punta de anca de res", "meat", "kg", "20.000"),
@@ -154,6 +161,83 @@ class SeedExpiredLotTests(SeedTestCase):
         expiryDates = sorted(row["expiryDate"] for row in self.connection.execute("SELECT expiryDate FROM inventoryLots"))
         self.assertEqual(expiryDates[0], "2026-10-01")
         self.assertTrue(all(expiryDate > "2027-03-01" for expiryDate in expiryDates[1:]))
+
+
+class SeedGuardTests(SeedTestCase):
+    def counts(self) -> dict:
+        return {
+            tableName: self.connection.execute(f"SELECT COUNT(*) FROM {tableName}").fetchone()[0]
+            for tableName in ("inventoryItems", "inventoryLots", "stockMovements")
+        }
+
+    def testInv066SeedRejectedWhenItemsExist(self) -> None:
+        createItem(
+            self.connection,
+            {"name": "Jugo de lulo", "locationId": "queChille", "category": "beverages", "unitOfMeasure": "l", "reorderPoint": "10"},
+            now=self.fixedNow,
+        )
+        with self.assertRaisesRegex(BusinessRuleError, "already"):
+            loadInventorySeed(self.connection, now=self.fixedNow)
+        self.assertEqual(self.counts(), {"inventoryItems": 1, "inventoryLots": 0, "stockMovements": 0})
+        self.assertFalse(self.connection.in_transaction)
+
+    def testInv066RejectedSeedChangesNothing(self) -> None:
+        loadInventorySeed(self.connection, now=self.fixedNow)
+        before = self.counts()
+        stockBefore = calculateStock(self.connection)
+        with self.assertRaises(BusinessRuleError):
+            loadInventorySeed(self.connection, now=self.fixedNow)
+        self.assertEqual(self.counts(), before)
+        self.assertEqual(calculateStock(self.connection), stockBefore)
+
+    def testInv059SeedIsAtomicWhenAMovementFails(self) -> None:
+        calls = []
+
+        def failingRegisterMovement(*arguments: object, **keywords: object) -> dict:
+            calls.append(1)
+            if len(calls) == 20:
+                raise RuntimeError("simulated failure")
+            return inventory.registerMovement(*arguments, **keywords)
+
+        with mock.patch("services.api.inventoryseed.registerMovement", failingRegisterMovement):
+            with self.assertRaisesRegex(RuntimeError, "simulated"):
+                loadInventorySeed(self.connection, now=self.fixedNow)
+        self.assertGreaterEqual(len(calls), 20)
+        self.assertEqual(self.counts(), {"inventoryItems": 0, "inventoryLots": 0, "stockMovements": 0})
+        self.assertFalse(self.connection.in_transaction)
+        loadInventorySeed(self.connection, now=self.fixedNow)
+        self.assertEqual(self.counts()["inventoryItems"], 16)
+
+
+class SeedCommandTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporaryDirectory = tempfile.TemporaryDirectory()
+        self.addCleanup(temporaryDirectory.cleanup)
+        self.databasePath = Path(temporaryDirectory.name) / "data" / "inventory.sqlite"
+
+    def itemCount(self) -> int:
+        connection = createConnection(self.databasePath)
+        try:
+            return connection.execute("SELECT COUNT(*) FROM inventoryItems").fetchone()[0]
+        finally:
+            connection.close()
+
+    def testInv059CommandLoadsSeedIntoDatabaseFile(self) -> None:
+        environment = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+        command = [sys.executable, "-m", "services.api.inventoryseed", "--database", str(self.databasePath)]
+        first = subprocess.run(command, cwd=repositoryRoot, env=environment, capture_output=True, text=True, timeout=60)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertIn("16", first.stdout)
+        self.assertEqual(self.itemCount(), 16)
+        second = subprocess.run(command, cwd=repositoryRoot, env=environment, capture_output=True, text=True, timeout=60)
+        self.assertEqual(second.returncode, 1)
+        self.assertIn("already", second.stderr)
+        self.assertEqual(self.itemCount(), 16)
+
+    def testInv059MainReturnsExitCodes(self) -> None:
+        self.assertEqual(main(["--database", str(self.databasePath)]), 0)
+        self.assertEqual(main(["--database", str(self.databasePath)]), 1)
+        self.assertEqual(self.itemCount(), 16)
 
 
 if __name__ == "__main__":

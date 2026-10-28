@@ -1,10 +1,23 @@
 """Inventory seed data, loaded only through the inventory use cases."""
 
+import argparse
 import sqlite3
+import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
-from services.api.inventory import createItem, formatQuantity, parseQuantity, registerMovement
+from services.api.database import createConnection, initializeDatabase
+from services.api.inventory import (
+    BusinessRuleError,
+    createItem,
+    formatQuantity,
+    parseQuantity,
+    registerMovement,
+    transaction,
+)
 from services.api.models import utcNow
+
+defaultDatabasePath = "data/incidents.sqlite"
 
 seedLotLifeDays = 30
 lotControlledSeedCategories = ("meat", "produce")
@@ -70,39 +83,66 @@ def _movementPlan(
 def loadInventorySeed(connection: sqlite3.Connection, now: datetime | None = None) -> dict:
     moment = now or utcNow()
     lotExpiryDate = (moment.astimezone(timezone.utc).date() + timedelta(days=seedLotLifeDays)).isoformat()
-    movementCount = 0
-    for position, (locationId, name, category, unitOfMeasure, reorderPoint) in enumerate(seedItems):
-        item = createItem(
-            connection,
-            {
-                "name": name,
-                "locationId": locationId,
-                "category": category,
-                "unitOfMeasure": unitOfMeasure,
-                "reorderPoint": reorderPoint,
-            },
-            now=moment,
-        )
-        reorderPointMilli = parseQuantity(reorderPoint, unitOfMeasure)
-        lotBaseCode = f"{locationId}-{position + 1:02d}"
-        lots = {
-            "fresh": (lotBaseCode, lotExpiryDate),
-            "expired": (f"{lotBaseCode}-expired", expiredLotExpiryDate),
-        }
-        openedLots = set()
-        for movementType, quantityMilli, reason, lotRole in _movementPlan(
-            position, locationId, name, category, reorderPointMilli
-        ):
-            fields = {
-                "movementType": movementType,
-                "quantity": formatQuantity(quantityMilli, unitOfMeasure),
-                "reason": reason,
+    with transaction(connection):
+        if connection.execute("SELECT 1 FROM inventoryItems LIMIT 1").fetchone() is not None:
+            raise BusinessRuleError("The inventory already contains items; the seed was not loaded")
+        movementCount = 0
+        for position, (locationId, name, category, unitOfMeasure, reorderPoint) in enumerate(seedItems):
+            item = createItem(
+                connection,
+                {
+                    "name": name,
+                    "locationId": locationId,
+                    "category": category,
+                    "unitOfMeasure": unitOfMeasure,
+                    "reorderPoint": reorderPoint,
+                },
+                now=moment,
+            )
+            reorderPointMilli = parseQuantity(reorderPoint, unitOfMeasure)
+            lotBaseCode = f"{locationId}-{position + 1:02d}"
+            lots = {
+                "fresh": (lotBaseCode, lotExpiryDate),
+                "expired": (f"{lotBaseCode}-expired", expiredLotExpiryDate),
             }
-            if lotRole is not None:
-                fields["lotCode"], expiryDate = lots[lotRole]
-                if lotRole not in openedLots:
-                    fields["expiryDate"] = expiryDate
-                    openedLots.add(lotRole)
-            registerMovement(connection, item["id"], fields, now=moment)
-            movementCount += 1
+            openedLots = set()
+            for movementType, quantityMilli, reason, lotRole in _movementPlan(
+                position, locationId, name, category, reorderPointMilli
+            ):
+                fields = {
+                    "movementType": movementType,
+                    "quantity": formatQuantity(quantityMilli, unitOfMeasure),
+                    "reason": reason,
+                }
+                if lotRole is not None:
+                    fields["lotCode"], expiryDate = lots[lotRole]
+                    if lotRole not in openedLots:
+                        fields["expiryDate"] = expiryDate
+                        openedLots.add(lotRole)
+                registerMovement(connection, item["id"], fields, now=moment)
+                movementCount += 1
     return {"items": len(seedItems), "movements": movementCount}
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Load the Brasaland inventory seed data.")
+    parser.add_argument("--database", default=defaultDatabasePath, help="SQLite database path")
+    arguments = parser.parse_args(argv)
+
+    databasePath = Path(arguments.database)
+    databasePath.parent.mkdir(parents=True, exist_ok=True)
+    connection = createConnection(databasePath)
+    try:
+        initializeDatabase(connection)
+        summary = loadInventorySeed(connection)
+    except BusinessRuleError as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    finally:
+        connection.close()
+    print(f"Inventory seed loaded: {summary['items']} items, {summary['movements']} movements.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1086,3 +1086,27 @@
 - **Desviaciones evitadas:** 05 → sin rechazo, transacción única ni comando, que son T-24.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): sembrar el lote caducado de Cilantro`
+
+## Paso 06 (inventario) — T-24 Rechazo, atomicidad y comando de la semilla
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-24 · **Criterios:** INV-059, INV-066
+- **Qué se hizo:**
+  - Escritos primero cinco tests en `test_inventoryseed.py` (rechazo con artículos, segunda carga sin cambios, atomicidad ante un fallo en el movimiento 20, comando ejecutado con `subprocess` y códigos de salida de `main`); fallaban por falta de `main` (error de importación).
+  - `loadInventorySeed` corre ahora dentro de una sola transacción (`BEGIN IMMEDIATE`): comprueba que `inventoryItems` está vacía y, si no, lanza `BusinessRuleError` sin cambiar nada (INV-066); si cualquier alta o movimiento falla, no queda ningún dato cargado (PD-11).
+  - Añadida `main(argv)` con `argparse` de la biblioteca estándar y la opción `--database` (por defecto `data/incidents.sqlite`, la misma base que usa el servidor): crea la carpeta y el esquema, carga la semilla, imprime el resumen y devuelve 0, o devuelve 1 con el mensaje en stderr si la base ya tiene artículos. Comando: `python -m services.api.inventoryseed`.
+  - Para que la semilla use la transacción auxiliar sin importar un nombre privado, `_transaction` se renombra a `transaction` en `inventory.py` (cambio interno de nombre, sin cambio de comportamiento).
+  - Comprobado a mano contra un archivo temporal: primera ejecución «16 items, 49 movements» con salida 0; segunda con el mensaje de rechazo y salida 1; archivo temporal borrado.
+  - Suite completa: 158 pruebas pasan; los tests de concurrencia se repitieron 5 veces sin fallos.
+- **Archivos:**
+  - `services/api/inventoryseed.py` — transacción única, guarda y `main`
+  - `services/api/inventory.py` — `_transaction` pasa a `transaction`
+  - `services/api/tests/test_inventoryseed.py` — tests de T-24
+  - `specs/inventory-manager/tasks.md` — T-24 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** la guía `services/api/README.md` y `README.es.md` documentará el comando en T-26, como fija `tasks.md`. Con T-24 queda completa la semilla (T-22 a T-24).
+- **Desviaciones evitadas:** 05 → sin rutas HTTP; principio 3 → `argparse` es biblioteca estándar, sin dependencias nuevas.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): cargar la semilla de forma atómica con comando propio`
