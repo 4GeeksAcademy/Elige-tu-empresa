@@ -1199,7 +1199,29 @@
   - `memory-bank/estado-actual.md` — T-27 corregida a commit `066c3ea` y T-28 en revisión
   - `memory-bank/historial-commits.md` — registro de T-28
 - **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
-- **Decisiones y pendientes:** sin nuevas decisiones; falta revisión y autorización del usuario para el commit.
+- **Decisiones y pendientes:** sin nuevas decisiones; commit `e295b29`.
 - **Desviaciones evitadas:** 05 → solo T-28, no se implementó T-29; no se añadieron dependencias.
 - **Cambios respecto al plan:** ninguno.
-- **Commit:** pendiente de `OK commit`.
+- **Commit:** `feat(inventory): añadir el formulario de movimientos`
+
+## Paso 06 (inventario) — T-29 Informe, reorden y caducados en el backoffice
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-29 · **Criterios:** INV-054, INV-058
+- **Qué se hizo:**
+  - Añadidas primero tres pruebas estáticas para paneles de informe/reorden, separación de `waste` y `theft`, y formato del stock caducado; fallaron antes de implementar.
+  - Añadidos paneles de informe por artículo y señal de reorden por local, cargados desde los endpoints existentes. El informe presenta stock, punto de reorden, entradas, salidas, marca, ajustes separados y detalle de lotes.
+  - El listado presenta las cantidades disponibles y, cuando aplica, cada lote caducado con su cantidad y código. Los valores se insertan mediante `textContent`.
+  - Actualizadas las guías de backoffice en español e inglés, conservando las funcionalidades de incidencias y añadiendo la orientación de inventario.
+  - Suite completa: 188 pruebas pasan; `git diff --check` limpio; `grep -c "inventory"` devuelve 2 en cada guía. El comando `node --check` no pudo ejecutarse porque `node` no está instalado en este entorno.
+- **Archivos:**
+  - `uis/backoffice/inventory.html` e `inventory.js` — paneles de informe y reorden y presentación de stock caducado
+  - `services/api/tests/test_inventoryapi.py` — pruebas de T-29
+  - `uis/backoffice/README.md` y `README.es.md` — guías bilingües actualizadas
+  - `specs/inventory-manager/tasks.md` — T-29 `hecha`
+  - `memory-bank/estado-actual.md` y `memory-bank/historial-commits.md` — estado y bitácora
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 02-guias-bilingues, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** T-29 aprobada para commit; queda pendiente el recorrido manual del Paso 07.
+- **Desviaciones evitadas:** 05 → solo T-29, sin alterar spec o plan; no se añadieron dependencias.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): mostrar informes de stock en el backoffice`

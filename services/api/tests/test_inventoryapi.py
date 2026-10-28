@@ -399,6 +399,31 @@ class InventoryBackofficePageTests(InventoryAPITestCase):
         self.assertNotIn('name="stock"', page)
         self.assertNotIn('name="quantityMilli"', page)
 
+    def testInv058PageHasReportAndReorderPanels(self) -> None:
+        _, _, page = self.requestStatic("/inventory.html")
+        _, _, script = self.requestStatic("/inventory.js")
+        for fragment in ('id="stockReportPanel"', 'id="reorderPanel"', 'id="reportItemFilter"', 'id="reorderRows"'):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, page)
+        for fragment in ("/report", "/reorder", 'querySelector("#stockReportPanel")'):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, script)
+
+    def testInv058ReportShowsWasteAndTheftSeparately(self) -> None:
+        _, _, script = self.requestStatic("/inventory.js")
+        self.assertIn('adjustment.reason === "waste"', script)
+        self.assertIn('adjustment.reason === "theft"', script)
+        self.assertIn('"Desperdicio (waste)"', script)
+        self.assertIn('"Robo (theft)"', script)
+
+    def testInv054ScriptBuildsExpiredStockText(self) -> None:
+        _, _, script = self.requestStatic("/inventory.js")
+        self.assertIn('function formatStockSummary', script)
+        self.assertIn("disponibles, de ellos", script)
+        self.assertIn("caducados (lote", script)
+        self.assertIn("expiredLots", script)
+        self.assertIn("formatStockSummary(item)", script)
+
 
 if __name__ == "__main__":
     unittest.main()

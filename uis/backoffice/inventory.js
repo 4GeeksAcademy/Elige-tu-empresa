@@ -15,6 +15,13 @@ const elements = {
   locationFilter: document.querySelector("#locationFilter"),
   itemRows: document.querySelector("#itemRows"),
   emptyItems: document.querySelector("#emptyItems"),
+  stockReportPanel: document.querySelector("#stockReportPanel"),
+  reportItemFilter: document.querySelector("#reportItemFilter"),
+  stockReportDetails: document.querySelector("#stockReportDetails"),
+  emptyStockReport: document.querySelector("#emptyStockReport"),
+  reorderLocationFilter: document.querySelector("#reorderLocationFilter"),
+  reorderRows: document.querySelector("#reorderRows"),
+  emptyReorder: document.querySelector("#emptyReorder"),
 };
 
 let catalogs = null;
@@ -71,6 +78,28 @@ function createCell(text) {
   return cell;
 }
 
+function createDetail(label, value) {
+  const detail = document.createElement("div");
+  detail.className = "detailItem";
+  const title = document.createElement("span");
+  title.textContent = label;
+  const content = document.createElement("strong");
+  content.textContent = value;
+  detail.append(title, content);
+  return detail;
+}
+
+function formatStockSummary(item) {
+  const expiredLots = (item.expiredLots || []).filter((lot) => Number(lot.stock) > 0);
+  if (expiredLots.length === 0) {
+    return `${item.stock} ${item.unitOfMeasure}`;
+  }
+  const expiredText = expiredLots
+    .map((lot) => `${lot.stock} ${item.unitOfMeasure} caducados (lote ${lot.lotCode})`)
+    .join(", ");
+  return `${item.stock} ${item.unitOfMeasure} disponibles, de ellos ${expiredText}`;
+}
+
 function createActionButton(label, className, onClick) {
   const button = document.createElement("button");
   button.type = "button";
@@ -104,7 +133,7 @@ function renderItems(items) {
       createCell(item.name),
       createCell(catalogLabel("locations", item.locationId)),
       createCell(item.category),
-      createCell(`${item.stock} ${item.unitOfMeasure}`),
+      createCell(formatStockSummary(item)),
       createCell(`${item.reorderPoint} ${item.unitOfMeasure}`),
       markCell,
       actionsCell,
@@ -126,6 +155,83 @@ async function refreshItems() {
   if (items.some((item) => item.id === selectedItemId)) {
     elements.movementForm.elements.itemId.value = selectedItemId;
   }
+  fillSelect(elements.reportItemFilter, items.map((item) => ({
+    id: item.id,
+    label: item.name,
+  })));
+  if (items.some((item) => item.id === reportItemId)) {
+    elements.reportItemFilter.value = reportItemId;
+  }
+  reportItemId = elements.reportItemFilter.value;
+  elements.emptyStockReport.hidden = items.length > 0;
+  await refreshStockReport();
+}
+
+let reportItemId = "";
+
+async function refreshStockReport() {
+  const itemId = elements.reportItemFilter.value;
+  elements.stockReportDetails.replaceChildren();
+  if (!itemId) {
+    return;
+  }
+  reportItemId = itemId;
+  const report = await requestJson(`/items/${encodeURIComponent(itemId)}/report`);
+  const item = items.find((entry) => entry.id === itemId);
+  const details = [
+    ["Artículo", item?.name || itemId],
+    ["Stock disponible", `${report.stock} ${report.unitOfMeasure}`],
+    ["Punto de reorden", `${report.reorderPoint} ${report.unitOfMeasure}`],
+    ["Entradas", `${report.totalInbound} ${report.unitOfMeasure}`],
+    ["Salidas", `${report.totalOutbound} ${report.unitOfMeasure}`],
+    ["Reorden", report.needsReorder ? "Reordenar" : "No requiere reorden"],
+  ];
+  for (const adjustment of report.adjustments) {
+    const label = adjustment.reason === "waste"
+      ? "Desperdicio (waste)"
+      : adjustment.reason === "theft" ? "Robo (theft)" : "Corrección de conteo (count_correction)";
+    details.push([label, `${adjustment.total} ${report.unitOfMeasure}`]);
+  }
+  for (const lot of report.lots) {
+    details.push([
+      `Lote ${lot.lotCode} · caducidad ${lot.expiryDate}${lot.expired ? " · caducado" : ""}`,
+      `${lot.stock} ${report.unitOfMeasure} (${lot.expiredStock} caducados)`,
+    ]);
+  }
+  for (const [label, value] of details) {
+    elements.stockReportDetails.append(createDetail(label, value));
+  }
+}
+
+async function refreshReorderSignal() {
+  const locationId = elements.reorderLocationFilter.value;
+  const signal = await requestJson(`/locations/${encodeURIComponent(locationId)}/reorder`);
+  elements.reorderRows.replaceChildren();
+  elements.emptyReorder.hidden = signal.length > 0;
+  if (signal.length === 0) {
+    return;
+  }
+  const table = document.createElement("table");
+  const head = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  for (const label of ["Artículo", "Stock disponible", "Punto de reorden"]) {
+    const cell = document.createElement("th");
+    cell.textContent = label;
+    headerRow.append(cell);
+  }
+  head.append(headerRow);
+  const body = document.createElement("tbody");
+  for (const entry of signal) {
+    const row = document.createElement("tr");
+    row.append(
+      createCell(entry.name),
+      createCell(`${entry.stock} ${entry.unitOfMeasure}`),
+      createCell(`${entry.reorderPoint} ${entry.unitOfMeasure}`),
+    );
+    body.append(row);
+  }
+  table.append(head, body);
+  elements.reorderRows.append(table);
 }
 
 function updateMovementFields() {
@@ -290,6 +396,24 @@ elements.locationFilter.addEventListener("change", async () => {
   }
 });
 
+elements.reportItemFilter.addEventListener("change", async () => {
+  clearFeedback();
+  try {
+    await refreshStockReport();
+  } catch (error) {
+    showFeedback(error.message, "error");
+  }
+});
+
+elements.reorderLocationFilter.addEventListener("change", async () => {
+  clearFeedback();
+  try {
+    await refreshReorderSignal();
+  } catch (error) {
+    showFeedback(error.message, "error");
+  }
+});
+
 async function start() {
   try {
     catalogs = await requestJson("/catalogs");
@@ -300,8 +424,10 @@ async function start() {
     }
     fillSelect(elements.movementForm.elements.adjustmentReason, catalogs.adjustmentReasons);
     fillSelect(elements.locationFilter, catalogs.locations, true);
+    fillSelect(elements.reorderLocationFilter, catalogs.locations);
     await refreshItems();
     await refreshMovementLots();
+    await refreshReorderSignal();
     updateMovementFields();
     setConnection(true);
   } catch (error) {

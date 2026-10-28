@@ -111,6 +111,34 @@
           <p id="emptyItems" class="emptyState" hidden>No hay artículos en este local.</p>
         </div>
       </section>
+
+      <section id="stockReportPanel" class="panel" aria-labelledby="stockReportTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">DETALLE DE STOCK</p>
+            <h2 id="stockReportTitle">Informe del artículo</h2>
+          </div>
+        </div>
+        <form class="filterBar">
+          <label>Artículo<select id="reportItemFilter"></select></label>
+        </form>
+        <div id="stockReportDetails" class="detailsGrid" aria-live="polite"></div>
+        <p id="emptyStockReport" class="emptyState" hidden>No hay artículos para consultar.</p>
+      </section>
+
+      <section id="reorderPanel" class="panel" aria-labelledby="reorderTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">REPOSICIÓN</p>
+            <h2 id="reorderTitle">Señal de reorden por local</h2>
+          </div>
+        </div>
+        <form class="filterBar">
+          <label>Local<select id="reorderLocationFilter"></select></label>
+        </form>
+        <div id="reorderRows" aria-live="polite"></div>
+        <p id="emptyReorder" class="emptyState" hidden>No hay artículos que necesiten reorden en este local.</p>
+      </section>
     </main>
 
     <footer>
