@@ -13,6 +13,7 @@ quantityScale = 1000
 unitDecimals = {"kg": 3, "l": 3, "g": 0, "ml": 0, "unit": 0}
 quantityPattern = re.compile(r"-?(\d+)(?:\.(\d+))?")
 itemFieldNames = frozenset({"name", "locationId", "category", "unitOfMeasure", "reorderPoint"})
+movementFieldNames = frozenset({"movementType", "quantity", "reason"})
 
 
 class BusinessRuleError(Exception):
@@ -252,3 +253,55 @@ def listItems(connection: sqlite3.Connection, locationId: str | None = None) -> 
         {"locationId": locationId},
     ).fetchall()
     return [_itemView(connection, row, stockByItem[row["id"]]) for row in rows]
+
+
+def registerMovement(
+    connection: sqlite3.Connection,
+    itemId: str,
+    fields: dict,
+    now: datetime | None = None,
+) -> dict:
+    if not isinstance(fields, dict):
+        raise ValueError("Movement fields must be an object")
+    unsupported = fields.keys() - movementFieldNames
+    if unsupported:
+        raise ValueError(f"Unsupported fields: {', '.join(sorted(unsupported))}")
+    missing = movementFieldNames - fields.keys()
+    if missing:
+        raise ValueError(f"Missing required fields: {', '.join(sorted(missing))}")
+    movementType = fields["movementType"]
+    if not isinstance(movementType, str) or movementType not in catalogIds("movementTypes"):
+        raise ValueError("movementType is not in the movementTypes catalog")
+
+    with _transaction(connection):
+        itemRow = _fetchItemRow(connection, itemId)
+        unitOfMeasure = itemRow["unitOfMeasure"]
+        quantityMilli = parseQuantity(fields["quantity"], unitOfMeasure)
+        if movementType != "inbound":
+            raise NotImplementedError(f"{movementType} movements are not implemented yet")
+        if quantityMilli <= 0:
+            raise ValueError("quantity must be positive")
+        reason = fields["reason"]
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError("reason must be a non-empty string")
+
+        movementId = generateId()
+        createdAt = formatUtcTimestamp(now or utcNow())
+        connection.execute(
+            """
+            INSERT INTO stockMovements (id, itemId, lotCode, movementType, quantityMilli, reason, createdAt)
+            VALUES (?, ?, NULL, ?, ?, ?, ?)
+            """,
+            (movementId, itemId, movementType, quantityMilli, reason.strip(), createdAt),
+        )
+        stockMilli = calculateStock(connection, itemId=itemId)[itemId]
+        return {
+            "id": movementId,
+            "itemId": itemId,
+            "movementType": movementType,
+            "quantity": formatQuantity(quantityMilli, unitOfMeasure),
+            "reason": reason.strip(),
+            "lotCode": None,
+            "createdAt": createdAt,
+            "stock": formatQuantity(stockMilli, unitOfMeasure),
+        }

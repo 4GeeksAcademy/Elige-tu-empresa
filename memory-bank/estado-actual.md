@@ -41,13 +41,14 @@
 - Paso 06, T-08: `createItem`, `BusinessRuleError` y transacción auxiliar; 73 pruebas pasan; commit `a1bde2f`.
 - Paso 06, T-09: `updateItem`; 80 pruebas pasan; commit `4ba0ab7`.
 - Paso 06, T-10: `deleteItem`; 83 pruebas pasan; commit `891ea51`.
-- Paso 06, T-11: `getItem` y `listItems`; 89 pruebas pasan; pendiente de commit.
+- Paso 06, T-11: `getItem` y `listItems`; 89 pruebas pasan; commit `b929193`.
+- Paso 06, T-12: `registerMovement` para entradas sin lote; 96 pruebas pasan; pendiente de commit.
 
 ## En curso
-- Paso 06 del inventario: T-11 hecha, a la espera de tu `OK commit`.
+- Paso 06 del inventario: T-12 hecha, a la espera de tu `OK commit`.
 
 ## Siguiente
-- Paso 06 del inventario (modo Agent): T-12 (entradas sin lote), con tests primero.
+- Paso 06 del inventario (modo Agent): T-13 (salidas), con tests primero.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.

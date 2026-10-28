@@ -13,9 +13,10 @@ from services.api.inventory import (
     getItem,
     listItems,
     parseQuantity,
+    registerMovement,
     updateItem,
 )
-from services.api.models import formatUtcTimestamp, generateId, isUuid4, utcNow
+from services.api.models import formatUtcTimestamp, generateId, isUuid4, parseUtcTimestamp, utcNow
 
 
 class InventoryCatalogTests(unittest.TestCase):
@@ -751,6 +752,122 @@ class ListItemsTests(InventorySchemaTestCase):
         marks = {item["name"]: item["needsReorder"] for item in listItems(self.connection, "queChille")}
         self.assertEqual(marks, {"En el punto": True, "Por debajo": True, "Sin movimientos": True})
         self.assertIs(getItem(self.connection, empty["id"])["needsReorder"], True)
+
+
+class RegisterInboundTests(InventorySchemaTestCase):
+    fixedNow = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.item = createItem(
+            self.connection,
+            {
+                "name": "Jugo de lulo",
+                "locationId": "queChille",
+                "category": "beverages",
+                "unitOfMeasure": "l",
+                "reorderPoint": "10",
+            },
+            now=self.fixedNow,
+        )
+        self.itemId = self.item["id"]
+
+    def inbound(self, **overrides: object) -> dict:
+        fields = {"movementType": "inbound", "quantity": "5", "reason": "weekly delivery"}
+        fields.update(overrides)
+        return fields
+
+    def movementCount(self) -> int:
+        return self.connection.execute("SELECT COUNT(*) FROM stockMovements").fetchone()[0]
+
+    def testInv011RecordsInboundWithSystemUtcCreatedAt(self) -> None:
+        movement = registerMovement(self.connection, self.itemId, self.inbound(), now=self.fixedNow)
+        self.assertTrue(isUuid4(movement["id"]))
+        self.assertEqual(
+            {key: movement[key] for key in ("itemId", "movementType", "quantity", "reason", "lotCode", "createdAt")},
+            {
+                "itemId": self.itemId,
+                "movementType": "inbound",
+                "quantity": "5.000",
+                "reason": "weekly delivery",
+                "lotCode": None,
+                "createdAt": formatUtcTimestamp(self.fixedNow),
+            },
+        )
+        row = self.connection.execute("SELECT * FROM stockMovements WHERE id = ?", (movement["id"],)).fetchone()
+        self.assertEqual((row["quantityMilli"], row["createdAt"]), (5000, formatUtcTimestamp(self.fixedNow)))
+        before = utcNow()
+        automatic = registerMovement(self.connection, self.itemId, self.inbound())
+        after = utcNow()
+        self.assertTrue(before <= parseUtcTimestamp(automatic["createdAt"]) <= after)
+        with self.assertRaisesRegex(ValueError, "Unsupported"):
+            registerMovement(self.connection, self.itemId, self.inbound(createdAt="2020-01-01T00:00:00Z"))
+        self.assertEqual(self.movementCount(), 2)
+
+    def testInv012InboundIncreasesStock(self) -> None:
+        self.assertEqual(self.item["stock"], "0.000")
+        first = registerMovement(self.connection, self.itemId, self.inbound(quantity="5"))
+        second = registerMovement(self.connection, self.itemId, self.inbound(quantity="2.5"))
+        self.assertEqual((first["stock"], second["stock"]), ("5.000", "7.500"))
+        self.assertEqual(getItem(self.connection, self.itemId)["stock"], "7.500")
+        self.assertFalse(self.connection.in_transaction)
+
+    def testInv015RejectsUnknownMovementType(self) -> None:
+        for movementType in ("transfer", "", "INBOUND", None, 5):
+            with self.subTest(movementType=movementType):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, self.itemId, self.inbound(movementType=movementType))
+        with self.assertRaisesRegex(ValueError, "Missing"):
+            registerMovement(self.connection, self.itemId, {"quantity": "5", "reason": "weekly delivery"})
+        self.assertEqual(self.movementCount(), 0)
+
+    def testInv016RejectsMovementOfUnknownItem(self) -> None:
+        for itemId in (generateId(), "not-a-uuid"):
+            with self.subTest(itemId=itemId):
+                with self.assertRaises(LookupError):
+                    registerMovement(self.connection, itemId, self.inbound())
+        self.assertEqual(self.movementCount(), 0)
+
+    def testInv017RejectsNonPositiveInbound(self) -> None:
+        for quantity in ("0", "0.000", "-1", "-0.500"):
+            with self.subTest(quantity=quantity):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, self.itemId, self.inbound(quantity=quantity))
+        self.assertEqual(self.movementCount(), 0)
+
+    def testInv020RejectsExcessDecimalsInMovement(self) -> None:
+        unitItem = createItem(
+            self.connection,
+            {
+                "name": "Servilletas",
+                "locationId": "chilliBeans",
+                "category": "packaging",
+                "unitOfMeasure": "unit",
+                "reorderPoint": "500",
+            },
+            now=self.fixedNow,
+        )
+        with self.assertRaisesRegex(ValueError, "decimal"):
+            registerMovement(self.connection, self.itemId, self.inbound(quantity="1.2345"))
+        with self.assertRaisesRegex(ValueError, "decimal"):
+            registerMovement(self.connection, unitItem["id"], self.inbound(quantity="1.5"))
+        with self.assertRaises(ValueError):
+            registerMovement(self.connection, self.itemId, self.inbound(quantity=5))
+        self.assertEqual(self.movementCount(), 0)
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="1.234"))
+        registerMovement(self.connection, unitItem["id"], self.inbound(quantity="1500"))
+        self.assertEqual(self.movementCount(), 2)
+
+    def testInv021RejectsBlankInboundReason(self) -> None:
+        for reason in ("", "   ", None, 5):
+            with self.subTest(reason=reason):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, self.itemId, self.inbound(reason=reason))
+        fields = self.inbound()
+        del fields["reason"]
+        with self.assertRaisesRegex(ValueError, "Missing"):
+            registerMovement(self.connection, self.itemId, fields)
+        self.assertEqual(self.movementCount(), 0)
 
 
 if __name__ == "__main__":

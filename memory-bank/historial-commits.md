@@ -827,3 +827,24 @@
 - **Desviaciones evitadas:** 05 → solo T-11; sin señal de reorden ni informe.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): consultar y listar artículos con su stock`
+
+## Paso 06 (inventario) — T-12 Entradas sin lote
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-12 · **Criterios:** INV-011, INV-012, INV-015, INV-016, INV-017, INV-020, INV-021
+- **Qué se hizo:**
+  - Escritos primero seis tests en `test_inventory.py`; fallaban por falta de `registerMovement` (error de importación).
+  - Añadido `registerMovement(connection, itemId, fields, now=None)` en `inventory.py` para entradas: exige exactamente `movementType`, `quantity` y `reason` (cualquier otro campo, como `createdAt` o `stock`, se rechaza por datos inválidos), valida el tipo contra el catálogo, localiza el artículo (`LookupError`), valida cantidad positiva con la precisión de su unidad y motivo no vacío, asigna `createdAt` en UTC y devuelve el movimiento con el stock resultante.
+  - Las salidas y los ajustes, y los campos de lote, quedan fuera de esta tarea: un tipo válido que no sea `inbound` lanza `NotImplementedError` hasta T-13 y T-14, y `lotCode` y `expiryDate` se aceptarán en T-16 y T-17.
+  - Suite completa: 96 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — `registerMovement`
+  - `services/api/tests/test_inventory.py` — tests de T-12
+  - `specs/inventory-manager/tasks.md` — T-12 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el artículo se localiza antes de validar la cantidad, porque la precisión depende de su unidad; el tipo de movimiento y las claves se validan antes. El `NotImplementedError` es provisional y desaparece en T-13 y T-14.
+- **Desviaciones evitadas:** 05 → no se adelantó la lógica de salidas, ajustes ni lotes.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): registrar entradas de stock`
