@@ -5,6 +5,10 @@ const elements = {
   connectionStatus: document.querySelector("#connectionStatus"),
   feedback: document.querySelector("#feedback"),
   registerItemForm: document.querySelector("#registerItemForm"),
+  movementForm: document.querySelector("#movementForm"),
+  adjustmentReasonField: document.querySelector("#adjustmentReasonField"),
+  freeReasonField: document.querySelector("#freeReasonField"),
+  expiryDateField: document.querySelector("#expiryDateField"),
   editItemPanel: document.querySelector("#editItemPanel"),
   editItemForm: document.querySelector("#editItemForm"),
   cancelEdit: document.querySelector("#cancelEdit"),
@@ -15,6 +19,8 @@ const elements = {
 
 let catalogs = null;
 let editingItemId = null;
+let items = [];
+const movementLotsByItem = new Map();
 
 async function requestJson(path, options = {}) {
   const response = await fetch(`${apiBase}${path}`, options);
@@ -110,7 +116,66 @@ function renderItems(items) {
 async function refreshItems() {
   const locationId = elements.locationFilter.value;
   const query = locationId ? `?locationId=${encodeURIComponent(locationId)}` : "";
-  renderItems(await requestJson(`/items${query}`));
+  items = await requestJson(`/items${query}`);
+  renderItems(items);
+  const selectedItemId = elements.movementForm.elements.itemId.value;
+  fillSelect(elements.movementForm.elements.itemId, items.map((item) => ({
+    id: item.id,
+    label: `${item.name} (${item.stock} ${item.unitOfMeasure})`,
+  })));
+  if (items.some((item) => item.id === selectedItemId)) {
+    elements.movementForm.elements.itemId.value = selectedItemId;
+  }
+}
+
+function updateMovementFields() {
+  const form = elements.movementForm;
+  const isAdjustment = form.elements.movementType.value === "adjustment";
+  const selectedItem = items.find((item) => item.id === form.elements.itemId.value);
+  const opensNewLot = form.elements.movementType.value === "inbound"
+    && form.elements.lotCode.value.trim() !== ""
+    && !movementLotsByItem.get(selectedItem?.id)?.some((lot) => lot.lotCode === form.elements.lotCode.value.trim());
+  elements.adjustmentReasonField.hidden = !isAdjustment;
+  elements.freeReasonField.hidden = isAdjustment;
+  form.elements.adjustmentReason.required = isAdjustment;
+  form.elements.freeReason.required = !isAdjustment;
+  elements.expiryDateField.hidden = !opensNewLot;
+  form.elements.expiryDate.required = opensNewLot;
+}
+
+async function refreshMovementLots() {
+  const itemId = elements.movementForm.elements.itemId.value;
+  if (!itemId || movementLotsByItem.has(itemId)) {
+    updateMovementFields();
+    return;
+  }
+  try {
+    const report = await requestJson(`/items/${encodeURIComponent(itemId)}/report`);
+    movementLotsByItem.set(itemId, report.lots);
+  } catch (error) {
+    showFeedback(error.message, "error");
+  }
+  updateMovementFields();
+}
+
+function movementValues(form) {
+  const fields = form.elements;
+  const movement = {
+    movementType: fields.movementType.value,
+    quantity: fields.quantity.value,
+  };
+  if (fields.movementType.value === "adjustment") {
+    movement.reason = fields.adjustmentReason.value;
+  } else {
+    movement.reason = fields.freeReason.value;
+  }
+  if (fields.lotCode.value.trim()) {
+    movement.lotCode = fields.lotCode.value.trim();
+  }
+  if (!elements.expiryDateField.hidden && fields.expiryDate.value) {
+    movement.expiryDate = fields.expiryDate.value;
+  }
+  return movement;
 }
 
 function closeEdit() {
@@ -167,6 +232,34 @@ elements.registerItemForm.addEventListener("submit", async (event) => {
   }
 });
 
+elements.movementForm.addEventListener("input", updateMovementFields);
+elements.movementForm.addEventListener("change", (event) => {
+  updateMovementFields();
+  if (event.target === elements.movementForm.elements.itemId) {
+    refreshMovementLots();
+  }
+});
+elements.movementForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  clearFeedback();
+  const itemId = elements.movementForm.elements.itemId.value;
+  try {
+    const movement = await requestJson(`/items/${encodeURIComponent(itemId)}/movements`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(movementValues(elements.movementForm)),
+    });
+    elements.movementForm.reset();
+    updateMovementFields();
+    showFeedback(`Movimiento registrado. Stock disponible: ${movement.stock}`, "success");
+    movementLotsByItem.delete(itemId);
+    await refreshItems();
+    await refreshMovementLots();
+  } catch (error) {
+    showFeedback(error.message, "error");
+  }
+});
+
 elements.editItemForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   clearFeedback();
@@ -191,6 +284,7 @@ elements.locationFilter.addEventListener("change", async () => {
   clearFeedback();
   try {
     await refreshItems();
+    await refreshMovementLots();
   } catch (error) {
     showFeedback(error.message, "error");
   }
@@ -204,8 +298,11 @@ async function start() {
       fillSelect(form.elements.category, catalogs.categories);
       fillSelect(form.elements.unitOfMeasure, catalogs.units);
     }
+    fillSelect(elements.movementForm.elements.adjustmentReason, catalogs.adjustmentReasons);
     fillSelect(elements.locationFilter, catalogs.locations, true);
     await refreshItems();
+    await refreshMovementLots();
+    updateMovementFields();
     setConnection(true);
   } catch (error) {
     setConnection(false);

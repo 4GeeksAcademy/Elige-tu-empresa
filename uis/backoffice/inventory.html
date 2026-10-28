@@ -46,6 +46,32 @@
         </form>
       </section>
 
+      <section class="panel" aria-labelledby="movementTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">MOVIMIENTOS</p>
+            <h2 id="movementTitle">Registrar movimiento</h2>
+          </div>
+        </div>
+        <form id="movementForm" class="formGrid">
+          <label class="wideField">Artículo<select name="itemId" required></select></label>
+          <label>Tipo de movimiento
+            <select name="movementType" required>
+              <option value="inbound">Entrada</option>
+              <option value="outbound">Salida</option>
+              <option value="adjustment">Ajuste</option>
+            </select>
+          </label>
+          <label>Cantidad<input name="quantity" inputmode="decimal" pattern="-?[0-9]+([.][0-9]+)?" required></label>
+          <label id="adjustmentReasonField" hidden>Motivo del ajuste<select name="adjustmentReason"></select></label>
+          <label id="freeReasonField">Motivo<input name="freeReason" maxlength="200" required></label>
+          <label>Lote (si aplica)<input name="lotCode" maxlength="100"></label>
+          <label id="expiryDateField" hidden>Caducidad del lote nuevo<input name="expiryDate" type="date"></label>
+          <div class="formActions"><button type="submit">Registrar movimiento</button></div>
+        </form>
+        <p class="muted">En ajustes, usa una cantidad negativa para reducir stock. Indica la fecha de caducidad solo al abrir un lote nuevo.</p>
+      </section>
+
       <section id="editItemPanel" class="panel" aria-labelledby="editItemTitle" hidden>
         <div class="sectionHeading">
           <div>

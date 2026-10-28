@@ -1182,3 +1182,24 @@
 - **Desviaciones evitadas:** 05 → sin formulario de movimientos (T-28) ni informe (T-29); principio 3 → el `node` usado es el que ya trae VS Code y no se instaló nada.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): añadir la página de inventario al backoffice`
+
+## Paso 06 (inventario) — T-28 Formulario de movimientos en el backoffice
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-28 · **Criterios:** INV-037, INV-057
+- **Qué se hizo:**
+  - Añadidas primero cuatro pruebas de contenido servido: opciones de los tres tipos de movimiento, ausencia de campo de stock en el formulario y página, y uso del mensaje del servidor ante el rechazo. Las pruebas fallaron antes de la implementación por faltar el formulario.
+  - Añadido a `inventory.html` el formulario de movimientos con cantidad, motivo libre o motivo de ajuste, lote y fecha de caducidad condicional para un lote nuevo; no permite editar stock.
+  - `inventory.js` carga los artículos y los motivos de ajuste, consulta los lotes existentes para decidir cuándo pedir caducidad, envía `POST /items/{id}/movements`, refresca los artículos y muestra `error.message` tal cual.
+  - Suite completa: 185 pruebas pasan; `git diff --check` limpio.
+- **Archivos:**
+  - `uis/backoffice/inventory.html` y `inventory.js` — formulario de movimientos
+  - `services/api/tests/test_inventoryapi.py` — tests de T-28
+  - `specs/inventory-manager/tasks.md` — T-28 `hecha`
+  - `memory-bank/estado-actual.md` — T-27 corregida a commit `066c3ea` y T-28 en revisión
+  - `memory-bank/historial-commits.md` — registro de T-28
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** sin nuevas decisiones; falta revisión y autorización del usuario para el commit.
+- **Desviaciones evitadas:** 05 → solo T-28, no se implementó T-29; no se añadieron dependencias.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** pendiente de `OK commit`.

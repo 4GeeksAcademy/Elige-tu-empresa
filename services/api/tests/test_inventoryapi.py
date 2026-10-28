@@ -369,6 +369,36 @@ class InventoryBackofficePageTests(InventoryAPITestCase):
         self.assertIn('href="/"', inventoryPage)
         self.assertIn("Registrar incidencia", index)
 
+    def testInv057MovementFormOffersThreeTypes(self) -> None:
+        _, _, page = self.requestStatic("/inventory.html")
+        self.assertIn('id="movementForm"', page)
+        formHtml = page[page.index('id="movementForm"'):]
+        formHtml = formHtml[:formHtml.index("</form>")]
+        self.assertIn('name="movementType"', formHtml)
+        for movementType in ("inbound", "outbound", "adjustment"):
+            with self.subTest(movementType=movementType):
+                self.assertIn(f'value="{movementType}"', formHtml)
+
+    def testInv057MovementFormHasNoStockField(self) -> None:
+        _, _, page = self.requestStatic("/inventory.html")
+        formHtml = page[page.index('id="movementForm"'):]
+        formHtml = formHtml[:formHtml.index("</form>")]
+        self.assertNotIn('name="stock"', formHtml)
+        self.assertNotIn('name="quantityMilli"', formHtml)
+
+    def testInv057ScriptShowsServerRejectionMessage(self) -> None:
+        _, _, script = self.requestStatic("/inventory.js")
+        self.assertIn('querySelector("#movementForm")', script)
+        movementHandler = script[script.index('elements.movementForm.addEventListener("submit"'):]
+        movementHandler = movementHandler[:movementHandler.index('elements.editItemForm.addEventListener')]
+        self.assertIn('/movements', movementHandler)
+        self.assertIn('showFeedback(error.message, "error")', movementHandler)
+
+    def testInv037InventoryPageHasNoStockInput(self) -> None:
+        _, _, page = self.requestStatic("/inventory.html")
+        self.assertNotIn('name="stock"', page)
+        self.assertNotIn('name="quantityMilli"', page)
+
 
 if __name__ == "__main__":
     unittest.main()
