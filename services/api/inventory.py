@@ -277,13 +277,15 @@ def registerMovement(
         itemRow = _fetchItemRow(connection, itemId)
         unitOfMeasure = itemRow["unitOfMeasure"]
         quantityMilli = parseQuantity(fields["quantity"], unitOfMeasure)
-        if movementType != "inbound":
-            raise NotImplementedError(f"{movementType} movements are not implemented yet")
+        if movementType == "adjustment":
+            raise NotImplementedError("adjustment movements are not implemented yet")
         if quantityMilli <= 0:
             raise ValueError("quantity must be positive")
         reason = fields["reason"]
         if not isinstance(reason, str) or not reason.strip():
             raise ValueError("reason must be a non-empty string")
+        if movementType == "outbound" and calculateStock(connection, itemId=itemId)[itemId] - quantityMilli < 0:
+            raise BusinessRuleError("Not enough stock for this outbound movement")
 
         movementId = generateId()
         createdAt = formatUtcTimestamp(now or utcNow())

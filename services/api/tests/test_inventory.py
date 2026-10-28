@@ -754,7 +754,7 @@ class ListItemsTests(InventorySchemaTestCase):
         self.assertIs(getItem(self.connection, empty["id"])["needsReorder"], True)
 
 
-class RegisterInboundTests(InventorySchemaTestCase):
+class MovementTestCase(InventorySchemaTestCase):
     fixedNow = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
 
     def setUp(self) -> None:
@@ -780,6 +780,9 @@ class RegisterInboundTests(InventorySchemaTestCase):
     def movementCount(self) -> int:
         return self.connection.execute("SELECT COUNT(*) FROM stockMovements").fetchone()[0]
 
+
+
+class RegisterInboundTests(MovementTestCase):
     def testInv011RecordsInboundWithSystemUtcCreatedAt(self) -> None:
         movement = registerMovement(self.connection, self.itemId, self.inbound(), now=self.fixedNow)
         self.assertTrue(isUuid4(movement["id"]))
@@ -868,6 +871,70 @@ class RegisterInboundTests(InventorySchemaTestCase):
         with self.assertRaisesRegex(ValueError, "Missing"):
             registerMovement(self.connection, self.itemId, fields)
         self.assertEqual(self.movementCount(), 0)
+
+
+class RegisterOutboundTests(MovementTestCase):
+    def outbound(self, **overrides: object) -> dict:
+        fields = {"movementType": "outbound", "quantity": "3.5", "reason": "kitchen use"}
+        fields.update(overrides)
+        return fields
+
+    def stockMilli(self) -> int:
+        return calculateStock(self.connection, itemId=self.itemId)[self.itemId]
+
+    def testInv013OutboundDecreasesStock(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="10"))
+        movement = registerMovement(self.connection, self.itemId, self.outbound(), now=self.fixedNow)
+        self.assertEqual(
+            (movement["movementType"], movement["quantity"], movement["reason"], movement["stock"]),
+            ("outbound", "3.500", "kitchen use", "6.500"),
+        )
+        self.assertEqual(movement["createdAt"], formatUtcTimestamp(self.fixedNow))
+        row = self.connection.execute("SELECT * FROM stockMovements WHERE id = ?", (movement["id"],)).fetchone()
+        self.assertEqual(row["quantityMilli"], 3500)
+        self.assertEqual(self.stockMilli(), 6500)
+
+    def testInv017RejectsNonPositiveOutbound(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="10"))
+        for quantity in ("0", "-1", "-0.500"):
+            with self.subTest(quantity=quantity):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, self.itemId, self.outbound(quantity=quantity))
+        self.assertEqual(self.movementCount(), 1)
+        self.assertEqual(self.stockMilli(), 10000)
+
+    def testInv021RejectsBlankOutboundReason(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="10"))
+        for reason in ("", "   ", None, 5):
+            with self.subTest(reason=reason):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, self.itemId, self.outbound(reason=reason))
+        self.assertEqual(self.movementCount(), 1)
+
+    def testInv023RejectsOutboundBelowZero(self) -> None:
+        with self.assertRaises(BusinessRuleError):
+            registerMovement(self.connection, self.itemId, self.outbound(quantity="0.001"))
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="5"))
+        with self.assertRaisesRegex(BusinessRuleError, "stock"):
+            registerMovement(self.connection, self.itemId, self.outbound(quantity="5.001"))
+        self.assertEqual(self.stockMilli(), 5000)
+
+    def testInv023AcceptsOutboundThatLeavesStockAtZero(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="5"))
+        movement = registerMovement(self.connection, self.itemId, self.outbound(quantity="5"))
+        self.assertEqual(movement["stock"], "0.000")
+        self.assertEqual(self.stockMilli(), 0)
+        with self.assertRaises(BusinessRuleError):
+            registerMovement(self.connection, self.itemId, self.outbound(quantity="0.001"))
+
+    def testInv023RejectionLeavesNoMovement(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="2"))
+        with self.assertRaises(BusinessRuleError):
+            registerMovement(self.connection, self.itemId, self.outbound(quantity="3"))
+        self.assertEqual(self.movementCount(), 1)
+        self.assertFalse(self.connection.in_transaction)
+        registerMovement(self.connection, self.itemId, self.outbound(quantity="2"))
+        self.assertEqual(self.movementCount(), 2)
 
 
 if __name__ == "__main__":

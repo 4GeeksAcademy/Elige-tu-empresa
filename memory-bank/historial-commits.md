@@ -848,3 +848,24 @@
 - **Desviaciones evitadas:** 05 → no se adelantó la lógica de salidas, ajustes ni lotes.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): registrar entradas de stock`
+
+## Paso 06 (inventario) — T-13 Salidas
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-13 · **Criterios:** INV-013, INV-017, INV-021, INV-023
+- **Qué se hizo:**
+  - Extraída en `test_inventory.py` la clase base `MovementTestCase` (artículo y ayudantes comunes) y escritos seis tests de salidas en `RegisterOutboundTests`; fallaban con el `NotImplementedError` provisional de T-12.
+  - `registerMovement` acepta ahora `outbound`: cantidad positiva y motivo no vacío (datos inválidos) y, en la misma transacción `BEGIN IMMEDIATE`, comprueba con `calculateStock` que el stock no queda por debajo de cero (`BusinessRuleError`); un rechazo no deja movimiento ni transacción abierta (PD-06).
+  - Una salida que deja el stock exactamente en 0 se acepta.
+  - Suite completa: 102 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — salidas en `registerMovement`
+  - `services/api/tests/test_inventory.py` — base común y tests de T-13
+  - `specs/inventory-manager/tasks.md` — T-13 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** los ajustes siguen con `NotImplementedError` hasta T-14; la concurrencia real se prueba en T-15.
+- **Desviaciones evitadas:** 05 → solo T-13.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): registrar salidas sin dejar stock negativo`
