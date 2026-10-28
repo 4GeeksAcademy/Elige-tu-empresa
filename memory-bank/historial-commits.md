@@ -1134,3 +1134,27 @@
 - **Desviaciones evitadas:** 05 → solo T-25; sin cambiar el contrato de incidencias.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): exponer catálogos y artículos por HTTP`
+
+## Paso 06 (inventario) — T-26 Rutas de movimientos, informe y reorden
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-26 · **Criterios:** INV-012, INV-015, INV-016, INV-020, INV-023, INV-039, INV-041, INV-044, INV-045
+- **Qué se hizo:**
+  - Escritos primero nueve tests en `InventoryMovementRoutesTests` (`test_inventoryapi.py`); 12 fallos y 3 errores antes de implementar (todo daba 404).
+  - `server.py`: `POST /api/inventory/items/{id}/movements` (201), `GET /api/inventory/items/{id}/report` (200) y `GET /api/inventory/locations/{locationId}/reorder` (200). Los rechazos usan el mapa de T-25: 400 por datos inválidos (tipo desconocido, cantidad como número JSON o con demasiados decimales, campos no admitidos), 404 por artículo o local inexistente y 409 por regla de negocio (stock negativo). Un id que no es UUID v4 da 404.
+  - No existe ninguna ruta para modificar o eliminar un movimiento: los métodos `PATCH`, `PUT` y `DELETE` sobre rutas de movimientos responden 404 o 405, y un test lo comprueba.
+  - Un test registra una entrada con `lotCode` y `expiryDate` por HTTP y comprueba el lote caducado en el informe y en `expiredLots` del artículo.
+  - Guías `services/api/README.md` y `README.es.md`: contenido ampliado, comando de la semilla, sección de inventario con las rutas y los códigos de rechazo, equivalentes en ambos idiomas (regla 02). Comprobación de `tasks.md`: `grep -c inventory` da 8 y 4, ambos mayores que 0.
+  - Suite completa: 178 pruebas pasan.
+- **Archivos:**
+  - `services/api/server.py` — tres rutas
+  - `services/api/tests/test_inventoryapi.py` — tests de T-26
+  - `services/api/README.md` y `services/api/README.es.md` — guías
+  - `specs/inventory-manager/tasks.md` — T-26 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 02-guias-bilingues, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** con T-26 queda completa la API de inventario (T-25 y T-26). Las guías del backoffice se actualizan en T-29.
+- **Desviaciones evitadas:** 05 → solo T-26; sin vista de backoffice.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): exponer movimientos, informe y reorden por HTTP`

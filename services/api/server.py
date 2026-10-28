@@ -26,7 +26,10 @@ from services.api.inventory import (
     createItem,
     deleteItem,
     getItem,
+    getReorderSignal,
+    getStockReport,
     listItems,
+    registerMovement,
     updateItem,
 )
 from services.api.models import formatUtcTimestamp
@@ -250,6 +253,32 @@ class IncidentRequestHandler(BaseHTTPRequestHandler):
             with _databaseConnection(self.server.databasePath) as connection:
                 deleted = deleteItem(connection, itemId)
             self._sendJson(200, deleted)
+            return
+
+        itemActionMatch = re.fullmatch(r"/api/inventory/items/([^/]+)/(movements|report)", requestPath)
+        if itemActionMatch and (
+            (itemActionMatch.group(2) == "movements" and method == "POST")
+            or (itemActionMatch.group(2) == "report" and method == "GET")
+        ):
+            itemId = itemActionMatch.group(1)
+            if incidentIdPattern.fullmatch(itemId) is None:
+                raise APIRequestError(404, "Item not found")
+            if itemActionMatch.group(2) == "movements":
+                payload = self._readJsonObject()
+                with _databaseConnection(self.server.databasePath) as connection:
+                    movement = registerMovement(connection, itemId, payload)
+                self._sendJson(201, movement)
+                return
+            with _databaseConnection(self.server.databasePath) as connection:
+                report = getStockReport(connection, itemId)
+            self._sendJson(200, report)
+            return
+
+        reorderMatch = re.fullmatch(r"/api/inventory/locations/([^/]+)/reorder", requestPath)
+        if reorderMatch and method == "GET":
+            with _databaseConnection(self.server.databasePath) as connection:
+                signal = getReorderSignal(connection, reorderMatch.group(1))
+            self._sendJson(200, signal)
             return
 
         raise APIRequestError(404, "API route not found")
