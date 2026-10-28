@@ -911,3 +911,24 @@
 - **Desviaciones evitadas:** 05 → solo T-15.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `test(inventory): probar movimientos concurrentes sobre un archivo`
+
+## Paso 06 (inventario) — T-16 Control de lote
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-16 · **Criterios:** INV-026, INV-027
+- **Qué se hizo:**
+  - Escritos primero tres tests en `LotControlTests`: los movimientos de los tres tipos sobre `meat` y `produce` sin lote se rechazan, y los de las otras cuatro categorías se aceptan sin lote. Antes de implementar fallaron los de INV-026 (10 fallos); los de INV-027 ya pasaban, porque describen el comportamiento actual que hay que conservar.
+  - Añadida en `registerMovement` la regla de negocio: un artículo de categoría `meat` o `produce` sin lote lanza `BusinessRuleError`, después de validar cantidad y motivo y antes de comprobar el stock, como ordena el plan §4.
+  - Hasta T-17 no existe el campo `lotCode` en las peticiones, así que `meat` y `produce` quedan sin posibilidad de registrar movimientos en este commit; T-17 lo abre. `lotCode = None` es el marcador provisional que T-17 sustituye por el valor de la petición.
+  - Suite completa: 113 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — constante `lotControlledCategories` y regla
+  - `services/api/tests/test_inventory.py` — tests de T-16
+  - `specs/inventory-manager/tasks.md` — T-16 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** ninguna.
+- **Desviaciones evitadas:** 05 → no se aceptó `lotCode` todavía.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): exigir lote en carnes y productos frescos`

@@ -15,6 +15,7 @@ quantityPattern = re.compile(r"-?(\d+)(?:\.(\d+))?")
 itemFieldNames = frozenset({"name", "locationId", "category", "unitOfMeasure", "reorderPoint"})
 movementFieldNames = frozenset({"movementType", "quantity", "reason"})
 reducingAdjustmentReasons = ("waste", "theft")
+lotControlledCategories = ("meat", "produce")
 
 
 class BusinessRuleError(Exception):
@@ -294,6 +295,9 @@ def registerMovement(
                 raise ValueError("reason must be a non-empty string")
             reason = reason.strip()
             stockChangeMilli = -quantityMilli if movementType == "outbound" else quantityMilli
+        lotCode = None
+        if itemRow["category"] in lotControlledCategories and lotCode is None:
+            raise BusinessRuleError(f"A lot is required for {itemRow['category']} items")
         if stockChangeMilli < 0 and calculateStock(connection, itemId=itemId)[itemId] + stockChangeMilli < 0:
             raise BusinessRuleError("Not enough stock for this movement")
 

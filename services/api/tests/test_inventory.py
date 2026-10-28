@@ -1016,6 +1016,59 @@ class RegisterAdjustmentTests(MovementTestCase):
         self.assertFalse(self.connection.in_transaction)
 
 
+class LotControlTests(MovementTestCase):
+    def createItemOfCategory(self, category: str) -> str:
+        item = createItem(
+            self.connection,
+            {
+                "name": f"Artículo {category}",
+                "locationId": "queChille",
+                "category": category,
+                "unitOfMeasure": "kg",
+                "reorderPoint": "1",
+            },
+            now=self.fixedNow,
+        )
+        return item["id"]
+
+    def assertEveryMovementTypeNeedsLot(self, category: str) -> None:
+        itemId = self.createItemOfCategory(category)
+        self.insertMovement(itemId, quantityMilli=10000)
+        requests = (
+            {"movementType": "inbound", "quantity": "1", "reason": "delivery"},
+            {"movementType": "outbound", "quantity": "1", "reason": "sale"},
+            {"movementType": "adjustment", "quantity": "-1", "reason": "waste"},
+            {"movementType": "adjustment", "quantity": "1", "reason": "count_correction"},
+        )
+        for fields in requests:
+            with self.subTest(category=category, fields=fields):
+                with self.assertRaisesRegex(BusinessRuleError, "lot"):
+                    registerMovement(self.connection, itemId, fields)
+        self.assertEqual(self.movementCount(), 1)
+
+    def testInv026RejectsMeatMovementWithoutLot(self) -> None:
+        self.assertEveryMovementTypeNeedsLot("meat")
+
+    def testInv026RejectsProduceMovementWithoutLot(self) -> None:
+        self.assertEveryMovementTypeNeedsLot("produce")
+
+    def testInv027AcceptsMovementWithoutLotForOtherCategories(self) -> None:
+        for category in ("sauces_condiments", "beverages", "packaging", "cleaning_supplies"):
+            with self.subTest(category=category):
+                itemId = self.createItemOfCategory(category)
+                inbound = registerMovement(
+                    self.connection, itemId, {"movementType": "inbound", "quantity": "4", "reason": "delivery"}
+                )
+                outbound = registerMovement(
+                    self.connection, itemId, {"movementType": "outbound", "quantity": "1", "reason": "sale"}
+                )
+                adjustment = registerMovement(
+                    self.connection, itemId, {"movementType": "adjustment", "quantity": "-1", "reason": "waste"}
+                )
+                self.assertEqual((inbound["lotCode"], outbound["lotCode"], adjustment["lotCode"]), (None, None, None))
+                self.assertEqual(adjustment["stock"], "2.000")
+
+
 class ConcurrentMovementTests(unittest.TestCase):
     initialStock = "5"
 
