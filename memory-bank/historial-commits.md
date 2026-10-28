@@ -570,3 +570,23 @@
 - **Desviaciones evitadas:** 05 → ni tareas ni código antes de aprobar el plan; principio 3 → sin dependencias nuevas ni herramientas de prueba de JavaScript.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `docs(specs): redactar plan v1.0 del gestor de inventario`
+
+## Paso 05 (inventario) — Tareas v1.0
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** tasks v1.0 · **Criterios:** INV-001–INV-066 (todos cubiertos)
+- **Qué se hizo:**
+  - Escrito `specs/inventory-manager/tasks.md` con la plantilla §7.3: 29 tareas (T-01–T-29) en el orden orientativo del encargo, cada una con criterios, dependencias, nombres de test y estado `pendiente`.
+  - Comprobado con un script: 0 criterios huérfanos, 0 inexistentes, 0 nombres de test repetidos, todas las dependencias apuntan a tareas anteriores y cada test pertenece a un criterio de su tarea.
+  - Las pruebas de la vista del backoffice comprueban el contenido servido; el comportamiento visual queda para el recorrido manual del Paso 07.
+  - El plan v1.0 se aprobó y se commiteó en `e739c57` antes de empezar.
+  - Las tareas quedan en versión `1.0` aprobada por el usuario.
+- **Archivos:**
+  - `specs/inventory-manager/tasks.md` — el orden
+  - `memory-bank/estado-actual.md` — estado y hash del plan
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el trigger de stock no negativo (T-05) y `calculateStock` (T-07) comparten un único fragmento SQL de signo; un test lo comprueba.
+- **Desviaciones evitadas:** 05 → ningún código antes de aprobar las tareas.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(specs): redactar tareas v1.0 del gestor de inventario`
