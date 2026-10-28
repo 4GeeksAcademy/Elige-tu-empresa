@@ -10,6 +10,8 @@ from services.api.inventory import (
     createItem,
     deleteItem,
     formatQuantity,
+    getItem,
+    listItems,
     parseQuantity,
     updateItem,
 )
@@ -672,6 +674,83 @@ class DeleteItemTests(InventorySchemaTestCase):
             deleteItem(self.connection, "not-a-uuid")
         self.assertEqual(self.connection.execute("SELECT COUNT(*) FROM inventoryItems").fetchone()[0], 1)
         self.assertEqual(self.connection.execute("SELECT id FROM inventoryItems").fetchone()["id"], itemId)
+
+
+class ListItemsTests(InventorySchemaTestCase):
+    fixedNow = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+    def createBaseItem(self, **overrides: object) -> dict:
+        fields = {
+            "name": "Cilantro",
+            "locationId": "queChille",
+            "category": "produce",
+            "unitOfMeasure": "kg",
+            "reorderPoint": "2",
+        }
+        fields.update(overrides)
+        return createItem(self.connection, fields, now=self.fixedNow)
+
+    def testInv010ListsItemsWithStockAndReorderMark(self) -> None:
+        cilantro = self.createBaseItem()
+        cola = self.createBaseItem(
+            name="Refresco de cola", locationId="theBigSauce", category="beverages", unitOfMeasure="unit", reorderPoint="48"
+        )
+        self.insertMovement(cilantro["id"], quantityMilli=7500)
+        self.insertMovement(cilantro["id"], movementType="outbound", quantityMilli=1000, reason="sale")
+        self.insertMovement(cola["id"], quantityMilli=100000)
+        items = listItems(self.connection)
+        self.assertEqual([item["name"] for item in items], ["Cilantro", "Refresco de cola"])
+        byName = {item["name"]: item for item in items}
+        self.assertEqual(
+            (byName["Cilantro"]["stock"], byName["Cilantro"]["needsReorder"], byName["Cilantro"]["reorderPoint"]),
+            ("6.500", False, "2.000"),
+        )
+        self.assertEqual(
+            (byName["Refresco de cola"]["stock"], byName["Refresco de cola"]["needsReorder"]),
+            ("100", False),
+        )
+        self.assertEqual(
+            set(byName["Cilantro"]),
+            {"id", "name", "locationId", "category", "unitOfMeasure", "reorderPoint", "stock", "needsReorder", "createdAt"},
+        )
+        self.assertEqual(getItem(self.connection, cilantro["id"]), byName["Cilantro"])
+
+    def testInv010FiltersByLocationId(self) -> None:
+        self.createBaseItem(name="Cilantro", locationId="queChille")
+        self.createBaseItem(name="Jalapeños", locationId="chilliBeans")
+        self.createBaseItem(name="Cebolla", locationId="chilliBeans")
+        self.assertEqual([item["name"] for item in listItems(self.connection, "chilliBeans")], ["Cebolla", "Jalapeños"])
+        self.assertEqual([item["name"] for item in listItems(self.connection, locationId="queChille")], ["Cilantro"])
+        self.assertEqual(listItems(self.connection, "laArepita"), [])
+        self.assertEqual(len(listItems(self.connection)), 3)
+
+    def testInv010RejectsUnknownLocation(self) -> None:
+        for locationId in ("unknown", "", 5):
+            with self.subTest(locationId=locationId):
+                with self.assertRaises(LookupError):
+                    listItems(self.connection, locationId)
+
+    def testInv009RejectsGetOfUnknownItem(self) -> None:
+        with self.assertRaises(LookupError):
+            getItem(self.connection, generateId())
+        with self.assertRaises(LookupError):
+            getItem(self.connection, "not-a-uuid")
+
+    def testInv042ItemAboveReorderPointHasNoMark(self) -> None:
+        item = self.createBaseItem(reorderPoint="2")
+        self.insertMovement(item["id"], quantityMilli=2001)
+        self.assertIs(getItem(self.connection, item["id"])["needsReorder"], False)
+        self.assertIs(listItems(self.connection)[0]["needsReorder"], False)
+
+    def testInv043ListMarksItemAtOrBelowReorderPoint(self) -> None:
+        atPoint = self.createBaseItem(name="En el punto", reorderPoint="2")
+        below = self.createBaseItem(name="Por debajo", reorderPoint="2")
+        empty = self.createBaseItem(name="Sin movimientos", reorderPoint="0")
+        self.insertMovement(atPoint["id"], quantityMilli=2000)
+        self.insertMovement(below["id"], quantityMilli=1999)
+        marks = {item["name"]: item["needsReorder"] for item in listItems(self.connection, "queChille")}
+        self.assertEqual(marks, {"En el punto": True, "Por debajo": True, "Sin movimientos": True})
+        self.assertIs(getItem(self.connection, empty["id"])["needsReorder"], True)
 
 
 if __name__ == "__main__":

@@ -135,8 +135,9 @@ def _validatedItemFields(fields: dict) -> dict:
     return validated
 
 
-def _itemView(connection: sqlite3.Connection, row: sqlite3.Row) -> dict:
-    stockMilli = calculateStock(connection, itemId=row["id"])[row["id"]]
+def _itemView(connection: sqlite3.Connection, row: sqlite3.Row, stockMilli: int | None = None) -> dict:
+    if stockMilli is None:
+        stockMilli = calculateStock(connection, itemId=row["id"])[row["id"]]
     unitOfMeasure = row["unitOfMeasure"]
     return {
         "id": row["id"],
@@ -232,3 +233,22 @@ def deleteItem(connection: sqlite3.Connection, itemId: str) -> dict:
             raise BusinessRuleError("An item with movements cannot be deleted")
         connection.execute("DELETE FROM inventoryItems WHERE id = ?", (itemId,))
     return {"deleted": itemId}
+
+
+def getItem(connection: sqlite3.Connection, itemId: str) -> dict:
+    return _itemView(connection, _fetchItemRow(connection, itemId))
+
+
+def listItems(connection: sqlite3.Connection, locationId: str | None = None) -> list[dict]:
+    if locationId is not None and (not isinstance(locationId, str) or locationId not in catalogIds("locations")):
+        raise LookupError("Location not found")
+    stockByItem = calculateStock(connection, locationId=locationId)
+    rows = connection.execute(
+        """
+        SELECT * FROM inventoryItems
+        WHERE (:locationId IS NULL OR locationId = :locationId)
+        ORDER BY locationId, name, id
+        """,
+        {"locationId": locationId},
+    ).fetchall()
+    return [_itemView(connection, row, stockByItem[row["id"]]) for row in rows]
