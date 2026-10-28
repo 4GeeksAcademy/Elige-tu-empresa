@@ -869,3 +869,25 @@
 - **Desviaciones evitadas:** 05 → solo T-13.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): registrar salidas sin dejar stock negativo`
+
+## Paso 06 (inventario) — T-14 Ajustes
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-14 · **Criterios:** INV-014, INV-018, INV-019, INV-022, INV-024
+- **Qué se hizo:**
+  - Escritos primero seis tests en `RegisterAdjustmentTests`; fallaban con el `NotImplementedError` provisional (20 errores).
+  - `registerMovement` acepta ahora `adjustment`: cantidad con signo y distinta de cero, motivo del catálogo `adjustmentReasons`, `waste` y `theft` solo con cantidad negativa (todo datos inválidos) y rechazo por regla de negocio si el stock quedaría por debajo de cero.
+  - Reestructurado el cuerpo de `registerMovement` con una variable `stockChangeMilli` común a los tres tipos, de modo que la comprobación de stock se escribe una sola vez; desaparece el `NotImplementedError`.
+  - El motivo de un ajuste se guarda tal cual (valor de catálogo); el de entradas y salidas, sin espacios laterales.
+  - Suite completa: 108 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — ajustes y refactorización de `registerMovement`
+  - `services/api/tests/test_inventory.py` — tests de T-14
+  - `specs/inventory-manager/tasks.md` — T-14 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** `-0` se rechaza como cantidad cero.
+- **Desviaciones evitadas:** 05 → solo T-14; sin lotes ni caducados.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): registrar ajustes con motivo`

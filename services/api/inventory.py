@@ -14,6 +14,7 @@ unitDecimals = {"kg": 3, "l": 3, "g": 0, "ml": 0, "unit": 0}
 quantityPattern = re.compile(r"-?(\d+)(?:\.(\d+))?")
 itemFieldNames = frozenset({"name", "locationId", "category", "unitOfMeasure", "reorderPoint"})
 movementFieldNames = frozenset({"movementType", "quantity", "reason"})
+reducingAdjustmentReasons = ("waste", "theft")
 
 
 class BusinessRuleError(Exception):
@@ -277,15 +278,24 @@ def registerMovement(
         itemRow = _fetchItemRow(connection, itemId)
         unitOfMeasure = itemRow["unitOfMeasure"]
         quantityMilli = parseQuantity(fields["quantity"], unitOfMeasure)
-        if movementType == "adjustment":
-            raise NotImplementedError("adjustment movements are not implemented yet")
-        if quantityMilli <= 0:
-            raise ValueError("quantity must be positive")
         reason = fields["reason"]
-        if not isinstance(reason, str) or not reason.strip():
-            raise ValueError("reason must be a non-empty string")
-        if movementType == "outbound" and calculateStock(connection, itemId=itemId)[itemId] - quantityMilli < 0:
-            raise BusinessRuleError("Not enough stock for this outbound movement")
+        if movementType == "adjustment":
+            if quantityMilli == 0:
+                raise ValueError("quantity must not be zero")
+            if not isinstance(reason, str) or reason not in catalogIds("adjustmentReasons"):
+                raise ValueError("reason is not in the adjustmentReasons catalog")
+            if reason in reducingAdjustmentReasons and quantityMilli > 0:
+                raise ValueError(f"quantity must be negative for {reason}")
+            stockChangeMilli = quantityMilli
+        else:
+            if quantityMilli <= 0:
+                raise ValueError("quantity must be positive")
+            if not isinstance(reason, str) or not reason.strip():
+                raise ValueError("reason must be a non-empty string")
+            reason = reason.strip()
+            stockChangeMilli = -quantityMilli if movementType == "outbound" else quantityMilli
+        if stockChangeMilli < 0 and calculateStock(connection, itemId=itemId)[itemId] + stockChangeMilli < 0:
+            raise BusinessRuleError("Not enough stock for this movement")
 
         movementId = generateId()
         createdAt = formatUtcTimestamp(now or utcNow())
@@ -294,7 +304,7 @@ def registerMovement(
             INSERT INTO stockMovements (id, itemId, lotCode, movementType, quantityMilli, reason, createdAt)
             VALUES (?, ?, NULL, ?, ?, ?, ?)
             """,
-            (movementId, itemId, movementType, quantityMilli, reason.strip(), createdAt),
+            (movementId, itemId, movementType, quantityMilli, reason, createdAt),
         )
         stockMilli = calculateStock(connection, itemId=itemId)[itemId]
         return {
@@ -302,7 +312,7 @@ def registerMovement(
             "itemId": itemId,
             "movementType": movementType,
             "quantity": formatQuantity(quantityMilli, unitOfMeasure),
-            "reason": reason.strip(),
+            "reason": reason,
             "lotCode": None,
             "createdAt": createdAt,
             "stock": formatQuantity(stockMilli, unitOfMeasure),

@@ -937,5 +937,81 @@ class RegisterOutboundTests(MovementTestCase):
         self.assertEqual(self.movementCount(), 2)
 
 
+class RegisterAdjustmentTests(MovementTestCase):
+    def adjustment(self, **overrides: object) -> dict:
+        fields = {"movementType": "adjustment", "quantity": "-2", "reason": "waste"}
+        fields.update(overrides)
+        return fields
+
+    def stockMilli(self) -> int:
+        return calculateStock(self.connection, itemId=self.itemId)[self.itemId]
+
+    def testInv014AdjustmentAddsSignedQuantity(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="10"))
+        reduced = registerMovement(self.connection, self.itemId, self.adjustment(), now=self.fixedNow)
+        self.assertEqual(
+            (reduced["movementType"], reduced["quantity"], reduced["reason"], reduced["stock"]),
+            ("adjustment", "-2.000", "waste", "8.000"),
+        )
+        self.assertEqual(reduced["createdAt"], formatUtcTimestamp(self.fixedNow))
+        increased = registerMovement(
+            self.connection, self.itemId, self.adjustment(quantity="1.5", reason="count_correction")
+        )
+        self.assertEqual((increased["quantity"], increased["stock"]), ("1.500", "9.500"))
+        row = self.connection.execute("SELECT quantityMilli FROM stockMovements WHERE id = ?", (reduced["id"],)).fetchone()
+        self.assertEqual(row["quantityMilli"], -2000)
+        self.assertEqual(self.stockMilli(), 9500)
+
+    def testInv014CountCorrectionAcceptsBothSigns(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="3"))
+        down = registerMovement(self.connection, self.itemId, self.adjustment(quantity="-1", reason="count_correction"))
+        up = registerMovement(self.connection, self.itemId, self.adjustment(quantity="4", reason="count_correction"))
+        self.assertEqual((down["stock"], up["stock"]), ("2.000", "6.000"))
+
+    def testInv018RejectsZeroAdjustment(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="3"))
+        for reason in ("waste", "theft", "count_correction"):
+            for quantity in ("0", "0.000", "-0"):
+                with self.subTest(reason=reason, quantity=quantity):
+                    with self.assertRaises(ValueError):
+                        registerMovement(self.connection, self.itemId, self.adjustment(quantity=quantity, reason=reason))
+        self.assertEqual(self.movementCount(), 1)
+
+    def testInv019RejectsPositiveWasteAndTheft(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="3"))
+        for reason in ("waste", "theft"):
+            with self.subTest(reason=reason):
+                with self.assertRaisesRegex(ValueError, "negative"):
+                    registerMovement(self.connection, self.itemId, self.adjustment(quantity="1", reason=reason))
+        self.assertEqual(self.movementCount(), 1)
+        self.assertEqual(self.stockMilli(), 3000)
+
+    def testInv022RejectsMissingOrUnknownAdjustmentReason(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="3"))
+        for reason in ("", "   ", "purchase", "Waste", None, 5):
+            with self.subTest(reason=reason):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, self.itemId, self.adjustment(reason=reason))
+        fields = self.adjustment()
+        del fields["reason"]
+        with self.assertRaisesRegex(ValueError, "Missing"):
+            registerMovement(self.connection, self.itemId, fields)
+        self.assertEqual(self.movementCount(), 1)
+
+    def testInv024RejectsAdjustmentBelowZero(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="1"))
+        with self.assertRaisesRegex(BusinessRuleError, "stock"):
+            registerMovement(self.connection, self.itemId, self.adjustment(quantity="-1.001"))
+        with self.assertRaises(BusinessRuleError):
+            registerMovement(self.connection, self.itemId, self.adjustment(quantity="-1.001", reason="count_correction"))
+        self.assertEqual(self.stockMilli(), 1000)
+        registerMovement(self.connection, self.itemId, self.adjustment(quantity="-1", reason="theft"))
+        self.assertEqual(self.stockMilli(), 0)
+        with self.assertRaises(BusinessRuleError):
+            registerMovement(self.connection, self.itemId, self.adjustment(quantity="-0.001", reason="count_correction"))
+        self.assertEqual(self.movementCount(), 2)
+        self.assertFalse(self.connection.in_transaction)
+
+
 if __name__ == "__main__":
     unittest.main()
