@@ -1040,3 +1040,27 @@
 - **Desviaciones evitadas:** 05 → sin semilla ni rutas.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): calcular la señal de reorden por local`
+
+## Paso 06 (inventario) — T-22 Semilla base
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-22 · **Criterios:** INV-059, INV-060, INV-061, INV-062, INV-063
+- **Qué se hizo:**
+  - Escritos primero cinco tests en el archivo nuevo `test_inventoryseed.py`; fallaban por falta de `inventoryseed.py`.
+  - Creado `services/api/inventoryseed.py` con los 16 artículos del §4.3 del encargo y `loadInventorySeed(connection, now=None)`, que los da de alta con `createItem` y registra todos sus movimientos con `registerMovement` (nunca inserta stock directamente).
+  - Esquema de movimientos del plan §7: artículo normal con entrada de 4·rp, salida de 1·rp y un ajuste de ±0,5·rp (el motivo cicla `waste`, `theft`, `count_correction` por posición); *Salsa de ajo de la casa* y *Envases para llevar* con entrada de 2·rp, salida de 1·rp y `waste` de −0,2·rp, que los deja en 0,8·rp, por debajo de su punto de reorden.
+  - Los artículos `meat` y `produce` llevan lote `<local>-<posición de dos cifras>` (por ejemplo `laArepita-01`) abierto con su entrada y con caducidad de 30 días desde la fecha de carga.
+  - El test de INV-060 sustituye `createItem` y `registerMovement` del módulo de la semilla por espías: 16 altas y tantas llamadas a `registerMovement` como filas de movimientos.
+  - *Cilantro* se carga como un artículo normal con un único lote futuro; su lote caducado llega en T-23. El rechazo con artículos existentes, la transacción única y el comando llegan en T-24.
+  - Suite completa: 149 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventoryseed.py` — módulo nuevo
+  - `services/api/tests/test_inventoryseed.py` — tests de T-22
+  - `specs/inventory-manager/tasks.md` — T-22 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** los motivos de entrada y salida van en español («Compra semanal», «Consumo de cocina») porque son texto libre de dominio; los códigos de lote son deterministas.
+- **Desviaciones evitadas:** 05 → sin lote caducado, sin rechazo y sin comando, que son T-23 y T-24.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): cargar artículos y movimientos semilla`

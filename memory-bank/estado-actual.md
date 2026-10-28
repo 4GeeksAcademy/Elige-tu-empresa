@@ -51,13 +51,14 @@
 - Paso 06, T-18: salidas y ajustes sobre un lote; 125 pruebas pasan; commit `7f79857`.
 - Paso 06, T-19: reglas de lotes caducados; 131 pruebas pasan; commit `3f667ba`.
 - Paso 06, T-20: `getStockReport` y `expiredLots` en la vista del artículo; 139 pruebas pasan; commit `3195fed`.
-- Paso 06, T-21: `getReorderSignal`; 144 pruebas pasan; pendiente de commit.
+- Paso 06, T-21: `getReorderSignal`; 144 pruebas pasan; commit `a03d510`.
+- Paso 06, T-22: `inventoryseed.py` con los 16 artículos y sus movimientos; 149 pruebas pasan; pendiente de commit.
 
 ## En curso
-- Paso 06 del inventario: T-21 hecha, a la espera de tu `OK commit`.
+- Paso 06 del inventario: T-22 hecha, a la espera de tu `OK commit`.
 
 ## Siguiente
-- Paso 06 del inventario (modo Agent): T-22 (semilla base), con tests primero.
+- Paso 06 del inventario (modo Agent): T-23 (lote caducado de Cilantro), con tests primero.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
