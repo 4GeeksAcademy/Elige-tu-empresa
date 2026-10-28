@@ -1,10 +1,11 @@
 import sqlite3
 import unittest
+from datetime import datetime, timezone
 
 from services.api.catalogs import catalogIds, catalogs, inventoryCatalogs
 from services.api.database import createConnection, initializeDatabase, stockDeltaSql
-from services.api.inventory import calculateStock, formatQuantity, parseQuantity
-from services.api.models import formatUtcTimestamp, generateId, utcNow
+from services.api.inventory import calculateStock, createItem, formatQuantity, parseQuantity
+from services.api.models import formatUtcTimestamp, generateId, isUuid4, utcNow
 
 
 class InventoryCatalogTests(unittest.TestCase):
@@ -432,6 +433,102 @@ class CalculateStockTests(InventorySchemaTestCase):
             self.insertMovement(itemId, movementType="outbound", quantityMilli=availableStock + 1, reason="sale")
         self.insertMovement(itemId, movementType="outbound", quantityMilli=availableStock, reason="sale")
         self.assertEqual(calculateStock(self.connection, itemId=itemId), {itemId: 0})
+
+
+class CreateItemTests(InventorySchemaTestCase):
+    fixedNow = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+    def validFields(self, **overrides: object) -> dict:
+        fields = {
+            "name": "Cilantro",
+            "locationId": "queChille",
+            "category": "produce",
+            "unitOfMeasure": "kg",
+            "reorderPoint": "2",
+        }
+        fields.update(overrides)
+        return fields
+
+    def itemCount(self) -> int:
+        return self.connection.execute("SELECT COUNT(*) FROM inventoryItems").fetchone()[0]
+
+    def testInv001CreatesItemWithUniqueIdAndZeroStock(self) -> None:
+        first = createItem(self.connection, self.validFields(), now=self.fixedNow)
+        second = createItem(
+            self.connection,
+            self.validFields(name="Refresco de cola", category="beverages", unitOfMeasure="unit", reorderPoint="48"),
+            now=self.fixedNow,
+        )
+        self.assertTrue(isUuid4(first["id"]))
+        self.assertNotEqual(first["id"], second["id"])
+        self.assertEqual(
+            {key: first[key] for key in ("name", "locationId", "category", "unitOfMeasure", "reorderPoint", "stock")},
+            {
+                "name": "Cilantro",
+                "locationId": "queChille",
+                "category": "produce",
+                "unitOfMeasure": "kg",
+                "reorderPoint": "2.000",
+                "stock": "0.000",
+            },
+        )
+        self.assertEqual((second["reorderPoint"], second["stock"]), ("48", "0"))
+        self.assertEqual(first["createdAt"], formatUtcTimestamp(self.fixedNow))
+        row = self.connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (first["id"],)).fetchone()
+        self.assertEqual((row["name"], row["reorderPointMilli"]), ("Cilantro", 2000))
+        self.assertEqual(calculateStock(self.connection, itemId=first["id"]), {first["id"]: 0})
+        self.assertIs(first["needsReorder"], True)
+
+    def testInv001CreateJoinsOuterTransactionAndRollsBack(self) -> None:
+        self.connection.execute("BEGIN IMMEDIATE")
+        createItem(self.connection, self.validFields(), now=self.fixedNow)
+        self.assertTrue(self.connection.in_transaction)
+        self.connection.rollback()
+        self.assertEqual(self.itemCount(), 0)
+        createItem(self.connection, self.validFields(), now=self.fixedNow)
+        self.assertFalse(self.connection.in_transaction)
+        self.assertEqual(self.itemCount(), 1)
+
+    def testInv002RejectsBlankNameOrValuesOutsideCatalogsOnCreate(self) -> None:
+        for overrides in (
+            {"name": ""},
+            {"name": "   "},
+            {"name": 5},
+            {"locationId": "unknown"},
+            {"category": "unknown"},
+            {"unitOfMeasure": "lb"},
+            {"locationId": None},
+        ):
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(ValueError):
+                    createItem(self.connection, self.validFields(**overrides), now=self.fixedNow)
+        fields = self.validFields()
+        del fields["category"]
+        with self.assertRaisesRegex(ValueError, "Missing"):
+            createItem(self.connection, fields, now=self.fixedNow)
+        self.assertEqual(self.itemCount(), 0)
+
+    def testInv003RejectsInvalidReorderPointOnCreate(self) -> None:
+        for overrides in (
+            {"reorderPoint": "-1"},
+            {"reorderPoint": "1.0005"},
+            {"unitOfMeasure": "unit", "reorderPoint": "2.5"},
+            {"reorderPoint": 5},
+            {"reorderPoint": ""},
+        ):
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(ValueError):
+                    createItem(self.connection, self.validFields(**overrides), now=self.fixedNow)
+        created = createItem(self.connection, self.validFields(reorderPoint="0"), now=self.fixedNow)
+        self.assertEqual(created["reorderPoint"], "0.000")
+        self.assertEqual(self.itemCount(), 1)
+
+    def testInv038RejectsStockFieldOnCreate(self) -> None:
+        for fieldName in ("stock", "quantity", "stockMilli", "availableStock"):
+            with self.subTest(fieldName=fieldName):
+                with self.assertRaisesRegex(ValueError, "Unsupported"):
+                    createItem(self.connection, self.validFields(**{fieldName: "5"}), now=self.fixedNow)
+        self.assertEqual(self.itemCount(), 0)
 
 
 if __name__ == "__main__":

@@ -739,3 +739,24 @@
 - **Desviaciones evitadas:** 05 → solo T-07; los modelos no tienen test propio porque la tarea no lo pide.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): calcular el stock desde los movimientos`
+
+## Paso 06 (inventario) — T-08 Alta de artículo
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-08 · **Criterios:** INV-001, INV-002, INV-003, INV-038
+- **Qué se hizo:**
+  - Escritos primero cinco tests en `test_inventory.py`; fallaban por falta de `createItem`.
+  - Añadidos en `inventory.py`: `BusinessRuleError` (aún sin uso, la usarán T-09 en adelante), la transacción auxiliar `_transaction` (abre `BEGIN IMMEDIATE` o se une a una abierta, PD-11), la validación `_validatedItemFields`, la vista `_itemView` con stock calculado por `calculateStock` y `createItem(connection, fields, now=None)`.
+  - `createItem` exige exactamente las cinco claves permitidas, de modo que `stock`, `quantity` y similares se rechazan por datos inválidos en el propio caso de uso (INV-038); valida `name`, catálogos y `reorderPoint` antes de escribir.
+  - Suite completa: 73 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — alta de artículo, excepción y transacción
+  - `services/api/tests/test_inventory.py` — tests de T-08
+  - `specs/inventory-manager/tasks.md` — T-08 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** `name` se guarda sin espacios laterales; la vista del artículo aún no incluye `expiredLots`, que se añade con los lotes caducados (T-19).
+- **Desviaciones evitadas:** 05 → solo T-08; sin `updateItem` ni listado.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): dar de alta artículos de inventario`

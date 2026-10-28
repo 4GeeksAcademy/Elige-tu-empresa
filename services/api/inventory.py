@@ -2,12 +2,36 @@
 
 import re
 import sqlite3
+from contextlib import contextmanager
+from datetime import datetime
 
+from services.api.catalogs import catalogIds
 from services.api.database import stockDeltaSql
+from services.api.models import formatUtcTimestamp, generateId, utcNow
 
 quantityScale = 1000
 unitDecimals = {"kg": 3, "l": 3, "g": 0, "ml": 0, "unit": 0}
 quantityPattern = re.compile(r"-?(\d+)(?:\.(\d+))?")
+itemFieldNames = frozenset({"name", "locationId", "category", "unitOfMeasure", "reorderPoint"})
+
+
+class BusinessRuleError(Exception):
+    """The data is valid, but the operation breaks a stock, lot, expiry or state rule."""
+
+
+@contextmanager
+def _transaction(connection: sqlite3.Connection):
+    """Open an immediate transaction, or join the one the caller already opened."""
+    if connection.in_transaction:
+        yield
+        return
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        yield
+    except BaseException:
+        connection.rollback()
+        raise
+    connection.commit()
 
 
 def _decimalsFor(unitOfMeasure: str) -> int:
@@ -74,3 +98,74 @@ def calculateStock(
     if groupByLot:
         return {(row["itemId"], row["lotCode"]): row["stock"] for row in rows}
     return {row["itemId"]: row["stock"] for row in rows}
+
+
+def _validatedItemFields(fields: dict) -> dict:
+    if not isinstance(fields, dict):
+        raise ValueError("Item fields must be an object")
+    unsupported = fields.keys() - itemFieldNames
+    if unsupported:
+        raise ValueError(f"Unsupported fields: {', '.join(sorted(unsupported))}")
+    missing = itemFieldNames - fields.keys()
+    if missing:
+        raise ValueError(f"Missing required fields: {', '.join(sorted(missing))}")
+
+    name = fields["name"]
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("name must be a non-empty string")
+    validated = {"name": name.strip()}
+    for fieldName, catalogName in (
+        ("locationId", "locations"),
+        ("category", "categories"),
+        ("unitOfMeasure", "units"),
+    ):
+        value = fields[fieldName]
+        if not isinstance(value, str) or value not in catalogIds(catalogName):
+            raise ValueError(f"{fieldName} is not in the {catalogName} catalog")
+        validated[fieldName] = value
+
+    reorderPointMilli = parseQuantity(fields["reorderPoint"], validated["unitOfMeasure"])
+    if reorderPointMilli < 0:
+        raise ValueError("reorderPoint must not be negative")
+    validated["reorderPointMilli"] = reorderPointMilli
+    return validated
+
+
+def _itemView(connection: sqlite3.Connection, row: sqlite3.Row) -> dict:
+    stockMilli = calculateStock(connection, itemId=row["id"])[row["id"]]
+    unitOfMeasure = row["unitOfMeasure"]
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "locationId": row["locationId"],
+        "category": row["category"],
+        "unitOfMeasure": unitOfMeasure,
+        "reorderPoint": formatQuantity(row["reorderPointMilli"], unitOfMeasure),
+        "stock": formatQuantity(stockMilli, unitOfMeasure),
+        "needsReorder": stockMilli <= row["reorderPointMilli"],
+        "createdAt": row["createdAt"],
+    }
+
+
+def createItem(connection: sqlite3.Connection, fields: dict, now: datetime | None = None) -> dict:
+    validated = _validatedItemFields(fields)
+    itemId = generateId()
+    with _transaction(connection):
+        connection.execute(
+            """
+            INSERT INTO inventoryItems (
+                id, name, locationId, category, unitOfMeasure, reorderPointMilli, createdAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                itemId,
+                validated["name"],
+                validated["locationId"],
+                validated["category"],
+                validated["unitOfMeasure"],
+                validated["reorderPointMilli"],
+                formatUtcTimestamp(now or utcNow()),
+            ),
+        )
+        row = connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (itemId,)).fetchone()
+        return _itemView(connection, row)
