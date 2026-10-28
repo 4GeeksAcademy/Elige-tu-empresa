@@ -2,7 +2,7 @@
 
 > Se actualiza en cada commit, al menos "Hecho", "En curso" y "Siguiente".
 
-## Hecho
+## Hecho (gestor de incidencias, histórico)
 - Paso 01: arranque. Creados `AGENTS.md`, `.agents/rules/` (regla 00) y `memory-bank/`.
 - Paso 02: resumen inicial guardado en `memory-bank/registro/resumen-inicial-agente.md`.
 - Paso 03: entorno revisado; hallazgos en `memory-bank/registro/hallazgos-entorno.md`.
@@ -25,11 +25,14 @@
 - Paso 19a: plan versión 2 aprobado para `http.server`, sin FastAPI ni dependencias; commit `12cfc19`.
 - Paso 19b: API JSON y backoffice estático implementados y verificados; 35 pruebas pasan.
 
+## Hecho (gestor de inventario, SDD)
+- Paso 01: arranque del encargo. Encargo anterior archivado en `registro/encargo-incidencias.md`, nuevo `encargo.md`, `AGENTS.md` y `memory-bank/README.md` actualizados.
+
 ## En curso
-- Paso 19c: auditoría C01–C15 aprobada y descripción del PR redactada. El usuario autorizó commit, push y PR; falta ejecutar la publicación.
+- Paso 01 del inventario: en parada, a la espera del `OK commit`.
 
 ## Siguiente
-- Tras abrir el PR contra `main`, esperar revisión; no hacer merge.
+- Paso 02 del inventario (modo Agent): crear la regla `05-desarrollo-guiado-por-spec` y ampliar la `04-nombres-camel-case`.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
@@ -47,6 +50,9 @@
 | 2026-10-27 | 12 | Los IDs de incidencias y eventos usan UUID v4 en texto; los catálogos aprobados y seis áreas asignables se aplican también en SQLite; historial append-only protegido por triggers |
 | 2026-10-27 | 19a | Sustituir FastAPI por `http.server` de biblioteca estándar; no añadir dependencias ni acceder a `uv.lock`; servir API JSON y backoffice estático desde el mismo origen |
 | 2026-10-27 | 19b | API y backoffice se implementan y prueban con biblioteca estándar; sin autenticación, el autor se introduce manualmente y el servidor escucha en loopback por defecto |
+| 2026-10-28 | 01 (inventario) | `company-BRIEFING.md` no existe: el usuario decide usar `CONTEXT.md` como briefing y reconciliar los huecos |
+| 2026-10-28 | 01 (inventario) | No existe la rama `main` (ni local ni remota): el usuario da por válido `6260bb2` (merge del PR #1) como base |
 
 ## Pendientes
-- Esperar revisión del PR; no hacer merge.
+- `CONTEXT.md` (Brasaland, 14 locales) no contiene el dominio del inventario: ni las entidades, ni el §3.1, §4 y §7 que cita el encargo, ni los cuatro locales (`laArepita`, `queChille`, `theBigSauce`, `chilliBeans`). Se resuelve en el Paso 03: lo que no esté en `CONTEXT.md` ni en el §4 del encargo se marca `pendiente` en el spec.
+- Las referencias del encargo a «§2/§3.1/§4/§7 del briefing» no se pueden verificar contra `CONTEXT.md`.

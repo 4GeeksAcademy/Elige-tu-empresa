@@ -490,3 +490,26 @@
 - **Desviaciones evitadas:** ninguna; no se inventó un registro de desviaciones inexistente.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `docs(memory-bank): registrar auditoría y descripción del PR`
+
+## Paso 01 (inventario) — Arranque del encargo
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** — · **Criterios:** —
+- **Qué se hizo:**
+  - Comprobada la rama `feature/inventory-manager` y el árbol limpio. No existe `main` (ni local ni remota); el usuario da por válido `6260bb2` (merge del PR #1) como base.
+  - `company-BRIEFING.md` no existe; el usuario decide usar `CONTEXT.md` como briefing y reconciliar los huecos. `CONTEXT.md` no contiene el dominio del inventario: queda como pendiente para el Paso 03.
+  - Archivado el encargo anterior con `git mv` en `memory-bank/registro/encargo-incidencias.md`.
+  - Creado el nuevo `memory-bank/encargo.md` con las secciones 1 a 7 del encargo, literales.
+  - Actualizados `AGENTS.md` (rama, filas de `specs/` y dominio del inventario, fuentes de verdad, paso de lectura SDD) y el índice `memory-bank/README.md`.
+- **Archivos:**
+  - `memory-bank/registro/encargo-incidencias.md` — encargo anterior archivado
+  - `memory-bank/encargo.md` — encargo de inventario
+  - `AGENTS.md` — rama y fuentes de verdad
+  - `memory-bank/README.md` — índice de memoria
+  - `memory-bank/estado-actual.md` — estado, decisiones y pendientes
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case.
+- **Decisiones y pendientes:** `CONTEXT.md` hace de `company-BRIEFING.md` (usuario, 2026-10-28). Falta la base `main`; se usa `6260bb2`.
+- **Desviaciones evitadas:** ninguna.
+- **Cambios respecto al plan:** dos comprobaciones del Paso 01 (rama `main` y `company-BRIEFING.md`) no cuadraban; el usuario las resolvió como se indica arriba.
+- **Commit:** `docs(memory-bank): arrancar encargo del gestor de inventario`

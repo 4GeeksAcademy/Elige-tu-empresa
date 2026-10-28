@@ -12,8 +12,10 @@
 | Índice de la memoria | `memory-bank/README.md` | Qué contiene cada archivo de memoria, cuándo leerlo y cuándo actualizarlo |
 | Encargo en curso | `memory-bank/encargo.md` | El ticket, el checklist con IDs y el plan paso a paso |
 | Dominio de la empresa | `CONTEXT.md` (raíz) | El BRIEFING: única fuente de nombres de entidades y valores de dominio |
+| Spec, plan y tareas | `specs/<funcionalidad>/` (`spec.md`, `plan.md`, `tasks.md`) | El qué, el cómo y el orden de cada funcionalidad guiada por spec |
+| Dominio del inventario | `CONTEXT.md` (raíz) | Hace de `company-BRIEFING.md` del encargo (decisión del usuario, 2026-10-28; `company-BRIEFING.md` no existe) |
 
-- **Ramas.** Rama de trabajo: `feature/incident-manager`. Rama principal: `main`.
+- **Ramas.** Rama de trabajo: `feature/inventory-manager`. Rama principal: `main`.
 - **Carpetas separadas.** `memory-bank/` es una carpeta aparte; no está dentro de `.agents/`.
 - **Las reglas solo viven en `.agents/rules/`** y la memoria solo en `memory-bank/`.
   - No crees reglas ni memoria en ningún otro sitio: ni en `.github/instructions/`, ni en `.github/copilot-instructions.md`, ni en `.cursor/`.
@@ -25,7 +27,8 @@
 1. Lee `memory-bank/README.md` y, en el orden que indica, los archivos núcleo que ya existan.
 2. Aplica el protocolo de lectura de reglas (§4).
 3. Lee la última entrada de `memory-bank/historial-commits.md` y la salida de `git log --oneline -15`.
-4. Después, según lo que te pida el usuario:
+4. Si hay un encargo SDD en curso, lee su `spec.md`, `plan.md` y `tasks.md`.
+5. Después, según lo que te pida el usuario:
    - **Si pide una tarea concreta**, hazla siguiendo este manual.
    - **Si solo dice "continúa"**, resume en 5 líneas como máximo dónde estamos y propón el siguiente paso de `memory-bank/encargo.md`. No repitas pasos que ya estén commiteados.
 
@@ -36,6 +39,8 @@
 | Dominio: empresa, áreas, canales, tipos, severidades, entidades | `CONTEXT.md` | Márcalo como `pendiente` y pregunta |
 | Convenciones técnicas | Código, configuración, manifiestos y `git log` | Pregunta; no decidas tú |
 | Método de trabajo | Este manual y `.agents/rules/` | — |
+| Dominio del inventario | `CONTEXT.md` (hace de `company-BRIEFING.md`) | Márcalo como `pendiente` y pregunta |
+| Comportamiento esperado | `specs/inventory-manager/spec.md` | Pregunta; no lo decidas tú |
 | Qué hay que hacer y en qué punto estamos | `memory-bank/` | — |
 
 ## 4. Reglas: protocolo de lectura
