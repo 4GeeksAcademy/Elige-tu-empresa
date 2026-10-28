@@ -46,13 +46,14 @@
 - Paso 06, T-13: salidas con rechazo por stock negativo; 102 pruebas pasan; commit `ce8f7ae`.
 - Paso 06, T-14: ajustes con motivo; 108 pruebas pasan; commit `6209939`.
 - Paso 06, T-15: pruebas de concurrencia con hilos sobre un archivo; 110 pruebas pasan; commit `2f6895a`.
-- Paso 06, T-16: lote obligatorio en `meat` y `produce`; 113 pruebas pasan; pendiente de commit.
+- Paso 06, T-16: lote obligatorio en `meat` y `produce`; 113 pruebas pasan; commit `cc77f44`.
+- Paso 06, T-17: entradas con lote (apertura, suma y rechazos); 120 pruebas pasan; pendiente de commit.
 
 ## En curso
-- Paso 06 del inventario: T-16 hecha, a la espera de tu `OK commit`.
+- Paso 06 del inventario: T-17 hecha, a la espera de tu `OK commit`.
 
 ## Siguiente
-- Paso 06 del inventario (modo Agent): T-17 (entradas con lote), con tests primero.
+- Paso 06 del inventario (modo Agent): T-18 (salidas y ajustes con lote), con tests primero.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.

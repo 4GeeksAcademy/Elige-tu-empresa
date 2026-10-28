@@ -932,3 +932,25 @@
 - **Desviaciones evitadas:** 05 → no se aceptó `lotCode` todavía.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): exigir lote en carnes y productos frescos`
+
+## Paso 06 (inventario) — T-17 Entradas con lote
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-17 · **Criterios:** INV-028, INV-029, INV-030, INV-031, INV-033, INV-055
+- **Qué se hizo:**
+  - Escritos primero siete tests en `InboundLotTests`; seis fallaban por no aceptar `lotCode` ni `expiryDate`. El de INV-029 pasaba de forma espuria («campo no admitido») y se comprobó después que sigue pasando por el motivo correcto.
+  - `registerMovement` acepta los campos opcionales `lotCode` y `expiryDate`. Nueva función `_resolveLot`: una entrada con un `lotCode` nuevo exige una `expiryDate` válida (`AAAA-MM-DD`, fecha real) y crea el lote con `receivedAt` igual al instante del registro; con un lote existente del mismo artículo suma sin cambiar su fecha; una fecha distinta o un lote de otro artículo son reglas de negocio. Un lote ya caducado puede abrirse (INV-055).
+  - El lote y su primer movimiento se insertan en la misma transacción; `expiryDate` sin `lotCode` y `lotCode` en blanco son datos inválidos.
+  - Las salidas y ajustes con `lotCode` lanzan `NotImplementedError` hasta T-18, y una `expiryDate` en un movimiento que no es una entrada se rechaza como datos inválidos.
+  - Suite completa: 120 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — `_resolveLot`, `_validatedExpiryDate` y campos opcionales
+  - `services/api/tests/test_inventory.py` — tests de T-17
+  - `specs/inventory-manager/tasks.md` — T-17 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** `lotCode` se guarda sin espacios laterales; los artículos que no son `meat` ni `produce` pueden abrir lotes con una entrada (el lote es opcional, no prohibido).
+- **Desviaciones evitadas:** 05 → no se implementó el lote en salidas ni ajustes.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): registrar entradas con lote`

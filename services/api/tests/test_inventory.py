@@ -1069,6 +1069,117 @@ class LotControlTests(MovementTestCase):
                 self.assertEqual(adjustment["stock"], "2.000")
 
 
+class InboundLotTests(MovementTestCase):
+    def createMeatItem(self, name: str = "Punta de anca de res") -> str:
+        return createItem(
+            self.connection,
+            {
+                "name": name,
+                "locationId": "laArepita",
+                "category": "meat",
+                "unitOfMeasure": "kg",
+                "reorderPoint": "20",
+            },
+            now=self.fixedNow,
+        )["id"]
+
+    def lotInbound(self, **overrides: object) -> dict:
+        fields = {
+            "movementType": "inbound",
+            "quantity": "5",
+            "reason": "delivery",
+            "lotCode": "lot001",
+            "expiryDate": "2026-12-01",
+        }
+        fields.update(overrides)
+        return {key: value for key, value in fields.items() if value is not None}
+
+    def lotRows(self) -> list:
+        return self.connection.execute("SELECT * FROM inventoryLots ORDER BY lotCode").fetchall()
+
+    def testInv028InboundWithNewLotCreatesLot(self) -> None:
+        meatId = self.createMeatItem()
+        movement = registerMovement(self.connection, meatId, self.lotInbound(), now=self.fixedNow)
+        self.assertEqual((movement["lotCode"], movement["stock"]), ("lot001", "5.000"))
+        lots = self.lotRows()
+        self.assertEqual(
+            [(row["lotCode"], row["itemId"], row["expiryDate"]) for row in lots],
+            [("lot001", meatId, "2026-12-01")],
+        )
+        self.assertEqual(calculateStock(self.connection, itemId=meatId, groupByLot=True), {(meatId, "lot001"): 5000})
+        optional = registerMovement(
+            self.connection, self.itemId, self.lotInbound(lotCode="beverageLot", expiryDate="2027-01-15")
+        )
+        self.assertEqual(optional["lotCode"], "beverageLot")
+        self.assertEqual(len(self.lotRows()), 2)
+
+    def testInv028ReceivedAtIsRegistrationInstant(self) -> None:
+        meatId = self.createMeatItem()
+        registerMovement(self.connection, meatId, self.lotInbound(lotCode="fixedLot"), now=self.fixedNow)
+        self.assertEqual(self.lotRows()[0]["receivedAt"], formatUtcTimestamp(self.fixedNow))
+        before = utcNow()
+        movement = registerMovement(self.connection, meatId, self.lotInbound(lotCode="liveLot"))
+        after = utcNow()
+        liveLot = [row for row in self.lotRows() if row["lotCode"] == "liveLot"][0]
+        self.assertEqual(liveLot["receivedAt"], movement["createdAt"])
+        self.assertTrue(before <= parseUtcTimestamp(liveLot["receivedAt"]) <= after)
+
+    def testInv029RejectsNewLotWithoutValidExpiryDate(self) -> None:
+        meatId = self.createMeatItem()
+        for expiryDate in (None, "", "2026-13-01", "2026-02-30", "01/12/2026", "2026-1-5", "20261201", 20261201):
+            with self.subTest(expiryDate=expiryDate):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, meatId, self.lotInbound(expiryDate=expiryDate))
+        with self.assertRaises(ValueError):
+            registerMovement(self.connection, meatId, self.lotInbound(lotCode="   "))
+        fields = self.lotInbound()
+        del fields["lotCode"]
+        with self.assertRaisesRegex(ValueError, "expiryDate"):
+            registerMovement(self.connection, self.itemId, fields)
+        self.assertEqual((self.movementCount(), len(self.lotRows())), (0, 0))
+
+    def testInv030InboundOnExistingLotAddsStockKeepsExpiryDate(self) -> None:
+        meatId = self.createMeatItem()
+        registerMovement(self.connection, meatId, self.lotInbound())
+        withoutDate = registerMovement(self.connection, meatId, self.lotInbound(expiryDate=None, quantity="2"))
+        sameDate = registerMovement(self.connection, meatId, self.lotInbound(quantity="1.5"))
+        self.assertEqual((withoutDate["stock"], sameDate["stock"]), ("7.000", "8.500"))
+        self.assertEqual(calculateStock(self.connection, itemId=meatId, groupByLot=True), {(meatId, "lot001"): 8500})
+        lots = self.lotRows()
+        self.assertEqual([(row["lotCode"], row["expiryDate"]) for row in lots], [("lot001", "2026-12-01")])
+
+    def testInv031RejectsInboundWithDifferentExpiryDate(self) -> None:
+        meatId = self.createMeatItem()
+        registerMovement(self.connection, meatId, self.lotInbound())
+        with self.assertRaisesRegex(BusinessRuleError, "expiryDate"):
+            registerMovement(self.connection, meatId, self.lotInbound(expiryDate="2026-12-02"))
+        self.assertEqual(self.movementCount(), 1)
+        self.assertEqual(self.lotRows()[0]["expiryDate"], "2026-12-01")
+
+    def testInv033RejectsInboundOnLotOfAnotherItem(self) -> None:
+        meatId = self.createMeatItem()
+        otherMeatId = self.createMeatItem("Pechuga de pollo")
+        registerMovement(self.connection, meatId, self.lotInbound())
+        for expiryDate in (None, "2026-12-01"):
+            with self.subTest(expiryDate=expiryDate):
+                with self.assertRaisesRegex(BusinessRuleError, "another item"):
+                    registerMovement(self.connection, otherMeatId, self.lotInbound(expiryDate=expiryDate))
+        self.assertEqual(self.movementCount(), 1)
+        self.assertEqual(calculateStock(self.connection, itemId=otherMeatId), {otherMeatId: 0})
+
+    def testInv055InboundMayOpenAlreadyExpiredLot(self) -> None:
+        meatId = self.createMeatItem()
+        movement = registerMovement(
+            self.connection, meatId, self.lotInbound(lotCode="oldLot", expiryDate="2026-10-01"), now=self.fixedNow
+        )
+        self.assertEqual(movement["stock"], "5.000")
+        self.assertEqual(self.lotRows()[0]["expiryDate"], "2026-10-01")
+        again = registerMovement(
+            self.connection, meatId, self.lotInbound(lotCode="oldLot", expiryDate=None, quantity="1"), now=self.fixedNow
+        )
+        self.assertEqual(again["stock"], "6.000")
+
+
 class ConcurrentMovementTests(unittest.TestCase):
     initialStock = "5"
 

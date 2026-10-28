@@ -3,7 +3,7 @@
 import re
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import date, datetime
 
 from services.api.catalogs import catalogIds
 from services.api.database import stockDeltaSql
@@ -14,6 +14,7 @@ unitDecimals = {"kg": 3, "l": 3, "g": 0, "ml": 0, "unit": 0}
 quantityPattern = re.compile(r"-?(\d+)(?:\.(\d+))?")
 itemFieldNames = frozenset({"name", "locationId", "category", "unitOfMeasure", "reorderPoint"})
 movementFieldNames = frozenset({"movementType", "quantity", "reason"})
+optionalMovementFieldNames = frozenset({"lotCode", "expiryDate"})
 reducingAdjustmentReasons = ("waste", "theft")
 lotControlledCategories = ("meat", "produce")
 
@@ -257,6 +258,51 @@ def listItems(connection: sqlite3.Connection, locationId: str | None = None) -> 
     return [_itemView(connection, row, stockByItem[row["id"]]) for row in rows]
 
 
+def _validatedExpiryDate(value: object) -> str:
+    if not isinstance(value, str) or len(value) != 10:
+        raise ValueError("expiryDate must be a date written as YYYY-MM-DD")
+    try:
+        date.fromisoformat(value)
+    except ValueError as error:
+        raise ValueError("expiryDate must be a valid date written as YYYY-MM-DD") from error
+    return value
+
+
+def _resolveLot(
+    connection: sqlite3.Connection,
+    itemRow: sqlite3.Row,
+    movementType: str,
+    fields: dict,
+) -> tuple[str | None, str | None]:
+    """Return the lot code of a movement and the expiry date when the movement opens that lot."""
+    lotCode = fields.get("lotCode")
+    expiryDate = fields.get("expiryDate")
+    if lotCode is None:
+        if expiryDate is not None:
+            raise ValueError("expiryDate requires lotCode")
+        return None, None
+    if not isinstance(lotCode, str) or not lotCode.strip():
+        raise ValueError("lotCode must be a non-empty string")
+    lotCode = lotCode.strip()
+    if expiryDate is not None:
+        expiryDate = _validatedExpiryDate(expiryDate)
+        if movementType != "inbound":
+            raise ValueError("expiryDate only applies to inbound movements")
+    if movementType != "inbound":
+        raise NotImplementedError("lots on outbound and adjustment movements are not implemented yet")
+
+    lotRow = connection.execute("SELECT * FROM inventoryLots WHERE lotCode = ?", (lotCode,)).fetchone()
+    if lotRow is None:
+        if expiryDate is None:
+            raise ValueError("expiryDate is required to open a new lot")
+        return lotCode, expiryDate
+    if lotRow["itemId"] != itemRow["id"]:
+        raise BusinessRuleError("The lot belongs to another item")
+    if expiryDate is not None and expiryDate != lotRow["expiryDate"]:
+        raise BusinessRuleError("expiryDate differs from the expiryDate of the existing lot")
+    return lotCode, None
+
+
 def registerMovement(
     connection: sqlite3.Connection,
     itemId: str,
@@ -265,7 +311,7 @@ def registerMovement(
 ) -> dict:
     if not isinstance(fields, dict):
         raise ValueError("Movement fields must be an object")
-    unsupported = fields.keys() - movementFieldNames
+    unsupported = fields.keys() - movementFieldNames - optionalMovementFieldNames
     if unsupported:
         raise ValueError(f"Unsupported fields: {', '.join(sorted(unsupported))}")
     missing = movementFieldNames - fields.keys()
@@ -295,7 +341,7 @@ def registerMovement(
                 raise ValueError("reason must be a non-empty string")
             reason = reason.strip()
             stockChangeMilli = -quantityMilli if movementType == "outbound" else quantityMilli
-        lotCode = None
+        lotCode, newLotExpiryDate = _resolveLot(connection, itemRow, movementType, fields)
         if itemRow["category"] in lotControlledCategories and lotCode is None:
             raise BusinessRuleError(f"A lot is required for {itemRow['category']} items")
         if stockChangeMilli < 0 and calculateStock(connection, itemId=itemId)[itemId] + stockChangeMilli < 0:
@@ -303,12 +349,17 @@ def registerMovement(
 
         movementId = generateId()
         createdAt = formatUtcTimestamp(now or utcNow())
+        if newLotExpiryDate is not None:
+            connection.execute(
+                "INSERT INTO inventoryLots (lotCode, itemId, expiryDate, receivedAt) VALUES (?, ?, ?, ?)",
+                (lotCode, itemId, newLotExpiryDate, createdAt),
+            )
         connection.execute(
             """
             INSERT INTO stockMovements (id, itemId, lotCode, movementType, quantityMilli, reason, createdAt)
-            VALUES (?, ?, NULL, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (movementId, itemId, movementType, quantityMilli, reason, createdAt),
+            (movementId, itemId, lotCode, movementType, quantityMilli, reason, createdAt),
         )
         stockMilli = calculateStock(connection, itemId=itemId)[itemId]
         return {
@@ -317,7 +368,7 @@ def registerMovement(
             "movementType": movementType,
             "quantity": formatQuantity(quantityMilli, unitOfMeasure),
             "reason": reason,
-            "lotCode": None,
+            "lotCode": lotCode,
             "createdAt": createdAt,
             "stock": formatQuantity(stockMilli, unitOfMeasure),
         }
