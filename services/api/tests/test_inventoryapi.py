@@ -43,6 +43,13 @@ class InventoryAPITestCase(unittest.TestCase):
             body = error.read()
             return error.code, json.loads(body) if body else {}
 
+    def requestStatic(self, requestPath: str) -> tuple[int, dict, str]:
+        try:
+            with urlopen(Request(f"{self.baseUrl}{requestPath}"), timeout=3) as response:
+                return response.status, dict(response.headers.items()), response.read().decode("utf-8")
+        except HTTPError as error:
+            return error.code, dict(error.headers.items()), error.read().decode("utf-8")
+
     def itemFields(self, **overrides: object) -> dict:
         fields = {
             "name": "Jugo de lulo",
@@ -319,6 +326,48 @@ class InventoryMovementRoutesTests(InventoryAPITestCase):
         statusCode, body = self.request("GET", "/api/inventory/locations/unknown/reorder")
         self.assertEqual(statusCode, 404)
         self.assertIn("error", body)
+
+
+class InventoryBackofficePageTests(InventoryAPITestCase):
+    def testInv056ServerServesInventoryPage(self) -> None:
+        statusCode, headers, page = self.requestStatic("/inventory.html")
+        self.assertEqual(statusCode, 200)
+        self.assertIn("text/html", headers["Content-Type"])
+        self.assertIn("Inventario", page)
+        statusCode, headers, script = self.requestStatic("/inventory.js")
+        self.assertEqual(statusCode, 200)
+        self.assertIn("javascript", headers["Content-Type"])
+        self.assertIn('const apiBase = "/api/inventory"', script)
+        self.assertIn("/items", script)
+
+    def testInv056InventoryPageHasItemCreateEditDeleteControls(self) -> None:
+        _, _, page = self.requestStatic("/inventory.html")
+        _, _, script = self.requestStatic("/inventory.js")
+        for fragment in (
+            'id="locationFilter"',
+            'id="registerItemForm"',
+            'id="editItemForm"',
+            'id="itemRows"',
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, page)
+        for formId in ("registerItemForm", "editItemForm"):
+            formHtml = page[page.index(f'id="{formId}"'):]
+            formHtml = formHtml[:formHtml.index("</form>")]
+            for fieldName in ("name", "locationId", "category", "unitOfMeasure", "reorderPoint"):
+                with self.subTest(formId=formId, fieldName=fieldName):
+                    self.assertIn(f'name="{fieldName}"', formHtml)
+        for fragment in ('method: "POST"', 'method: "PATCH"', 'method: "DELETE"', "locationId="):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, script)
+        self.assertNotIn("innerHTML", script)
+
+    def testInv056IndexAndInventoryPagesLinkEachOther(self) -> None:
+        _, _, index = self.requestStatic("/")
+        _, _, inventoryPage = self.requestStatic("/inventory.html")
+        self.assertIn('href="/inventory.html"', index)
+        self.assertIn('href="/"', inventoryPage)
+        self.assertIn("Registrar incidencia", index)
 
 
 if __name__ == "__main__":

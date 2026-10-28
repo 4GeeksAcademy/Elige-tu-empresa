@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#153a35">
+    <title>Inventario · Brasaland</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/inventory.js" defer></script>
+  </head>
+  <body>
+    <header class="siteHeader">
+      <a class="brand" href="/">Brasaland<span>Digital</span></a>
+      <nav class="siteNav" aria-label="Secciones">
+        <a href="/">Incidencias</a>
+        <a href="/inventory.html" aria-current="page">Inventario</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">CONTROL DE STOCK</p>
+          <h1>Inventario</h1>
+          <p class="introText">Da de alta artículos y consulta el stock de cada local. El stock se calcula con los movimientos: no se edita.</p>
+        </div>
+        <div id="connectionStatus" class="connectionStatus" role="status">Conectando…</div>
+      </section>
+
+      <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+
+      <section class="panel" aria-labelledby="registerItemTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">NUEVO ARTÍCULO</p>
+            <h2 id="registerItemTitle">Dar de alta un artículo</h2>
+          </div>
+        </div>
+        <form id="registerItemForm" class="formGrid">
+          <label class="wideField">Nombre<input name="name" maxlength="200" required></label>
+          <label>Local<select name="locationId" required></select></label>
+          <label>Categoría<select name="category" required></select></label>
+          <label>Unidad<select name="unitOfMeasure" required></select></label>
+          <label>Punto de reorden<input name="reorderPoint" inputmode="decimal" pattern="[0-9]+([.][0-9]+)?" required></label>
+          <div class="formActions"><button type="submit">Guardar artículo</button></div>
+        </form>
+      </section>
+
+      <section id="editItemPanel" class="panel" aria-labelledby="editItemTitle" hidden>
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">EDICIÓN</p>
+            <h2 id="editItemTitle">Editar artículo</h2>
+          </div>
+          <button id="cancelEdit" type="button" class="textButton">Cancelar</button>
+        </div>
+        <p class="muted">Local, categoría y unidad solo se pueden cambiar mientras el artículo no tenga movimientos.</p>
+        <form id="editItemForm" class="formGrid">
+          <label class="wideField">Nombre<input name="name" maxlength="200" required></label>
+          <label>Local<select name="locationId" required></select></label>
+          <label>Categoría<select name="category" required></select></label>
+          <label>Unidad<select name="unitOfMeasure" required></select></label>
+          <label>Punto de reorden<input name="reorderPoint" inputmode="decimal" pattern="[0-9]+([.][0-9]+)?" required></label>
+          <div class="formActions"><button type="submit">Guardar cambios</button></div>
+        </form>
+      </section>
+
+      <section aria-labelledby="itemListTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">POR LOCAL</p>
+            <h2 id="itemListTitle">Artículos de inventario</h2>
+          </div>
+        </div>
+        <form id="locationFilterForm" class="filterBar">
+          <label>Local<select id="locationFilter" name="locationId"></select></label>
+        </form>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr><th>Artículo</th><th>Local</th><th>Categoría</th><th>Stock</th><th>Punto de reorden</th><th>Reorden</th><th></th></tr>
+            </thead>
+            <tbody id="itemRows"></tbody>
+          </table>
+          <p id="emptyItems" class="emptyState" hidden>No hay artículos en este local.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Brasaland Digital</span>
+      <span>Inventario · el stock disponible se calcula a partir de los movimientos</span>
+    </footer>
+  </body>
+</html>

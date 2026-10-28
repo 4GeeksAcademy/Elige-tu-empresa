@@ -1158,3 +1158,27 @@
 - **Desviaciones evitadas:** 05 → solo T-26; sin vista de backoffice.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): exponer movimientos, informe y reorden por HTTP`
+
+## Paso 06 (inventario) — T-27 Página de inventario en el backoffice
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-27 · **Criterios:** INV-056
+- **Qué se hizo:**
+  - Escritos primero tres tests en `InventoryBackofficePageTests` (`test_inventoryapi.py`): el servidor entrega `inventory.html` e `inventory.js`; la página tiene el selector de local, los formularios de alta y edición con los cinco campos, la tabla, y el script usa `POST`, `PATCH`, `DELETE` y el filtro `locationId` sin `innerHTML`; `index.html` y `inventory.html` se enlazan. Fallaban (6 fallos y 1 error).
+  - Creadas `uis/backoffice/inventory.html` e `inventory.js` sin framework, reutilizando `styles.css`: selector de local, tabla con artículo, local, categoría, stock con su unidad, punto de reorden y marca «Reordenar», formulario de alta, panel de edición y baja con confirmación. No existe ningún campo de stock; el texto de la API se inserta con `textContent`.
+  - `index.html`: el subtítulo «Centro de incidencias» de la cabecera pasa a ser un menú con «Incidencias» e «Inventario». `styles.css`: estilos del menú, de la marca de reorden y de las acciones de fila.
+  - Un test mío tenía una aserción demasiado literal (`/inventory/items`; el script compone `apiBase` más `/items`) y se corrigió.
+  - Comprobación de ejecución del JS, sin navegador: con el `node` que incluye VS Code se comprobó la sintaxis de `inventory.js` y de `app.js`, y se ejecutó `inventory.js` contra un servidor real con la semilla y un DOM mínimo simulado, en `/tmp`: 16 filas, marca de reorden en *Salsa de ajo de la casa* y *Envases para llevar*, alta (17 filas), filtro por local (5), edición, baja de un artículo sin movimientos y rechazo de la baja de uno con movimientos mostrando el mensaje. Servidor y temporales borrados; nada de esto queda en el repositorio.
+  - Suite completa: 181 pruebas pasan.
+- **Archivos:**
+  - `uis/backoffice/inventory.html` y `inventory.js` — página nueva
+  - `uis/backoffice/index.html` y `styles.css` — menú y estilos
+  - `services/api/tests/test_inventoryapi.py` — tests de T-27
+  - `specs/inventory-manager/tasks.md` — T-27 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el stock se muestra por ahora como cifra y unidad; el texto «X disponibles, de ellos Y caducados» llega en T-29. La guía del backoffice se actualiza en T-29. El recorrido visual en un navegador real queda para el Paso 07.
+- **Desviaciones evitadas:** 05 → sin formulario de movimientos (T-28) ni informe (T-29); principio 3 → el `node` usado es el que ya trae VS Code y no se instaló nada.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): añadir la página de inventario al backoffice`
