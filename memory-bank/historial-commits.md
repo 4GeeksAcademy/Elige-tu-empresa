@@ -1064,3 +1064,25 @@
 - **Desviaciones evitadas:** 05 → sin lote caducado, sin rechazo y sin comando, que son T-23 y T-24.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): cargar artículos y movimientos semilla`
+
+## Paso 06 (inventario) — T-23 Lote caducado de Cilantro
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-23 · **Criterios:** INV-064, INV-065
+- **Qué se hizo:**
+  - Escritos primero cuatro tests en `SeedExpiredLotTests`; fallaban porque *Cilantro* tenía un único lote futuro (4 fallos).
+  - `inventoryseed.py`: el plan de movimientos de cada artículo indica ahora el lote de cada movimiento (`fresh`, `expired` o ninguno). *Cilantro* (queChille) abre un lote `queChille-06-expired` con `expiryDate` fija `2026-10-01` y una entrada de 4·rp, retira 0,5·rp con un ajuste `waste` sobre ese lote (INV-052) y conserva 3,5·rp; un segundo lote con la fecha relativa recibe una entrada de 2·rp y la salida de 1·rp. La salida no toca el lote caducado (INV-050).
+  - El resto de lotes sigue con `expiryDate` igual al día de la carga más 30 días. Un test carga la semilla con otra fecha (2027-03-01) y comprueba que las fechas relativas la siguen y que la de *Cilantro* no cambia.
+  - La `expiryDate` solo se envía en la primera entrada de cada lote, que es la que lo abre.
+  - Suite completa: 153 pruebas pasan; los tests de T-22 siguen en verde, con los tres motivos de ajuste presentes.
+- **Archivos:**
+  - `services/api/inventoryseed.py` — plan con lote y caso de *Cilantro*
+  - `services/api/tests/test_inventoryseed.py` — tests de T-23
+  - `specs/inventory-manager/tasks.md` — T-23 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el ajuste de *Cilantro* es siempre `waste`, porque un lote caducado solo admite ese motivo; los tres motivos siguen apareciendo en el conjunto de la semilla. El valor `2026-10-01` es el del encargo; no depende de la fecha de carga.
+- **Desviaciones evitadas:** 05 → sin rechazo, transacción única ni comando, que son T-24.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): sembrar el lote caducado de Cilantro`

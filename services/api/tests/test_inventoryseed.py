@@ -101,5 +101,60 @@ class SeedItemsTests(SeedTestCase):
         self.assertEqual(len([item for item in items if not item["needsReorder"]]), 14)
 
 
+class SeedExpiredLotTests(SeedTestCase):
+    def cilantro(self) -> dict:
+        return [item for item in listItems(self.connection, now=self.fixedNow) if item["name"] == "Cilantro"][0]
+
+    def lotRows(self, itemId: str) -> list:
+        return self.connection.execute(
+            "SELECT * FROM inventoryLots WHERE itemId = ? ORDER BY expiryDate", (itemId,)
+        ).fetchall()
+
+    def testInv064CilantroHasExpiredLotWithStock(self) -> None:
+        loadInventorySeed(self.connection, now=self.fixedNow)
+        item = self.cilantro()
+        expired = [lot for lot in self.lotRows(item["id"]) if lot["expiryDate"] == "2026-10-01"]
+        self.assertEqual(len(expired), 1)
+        self.assertEqual(item["locationId"], "queChille")
+        lotStock = calculateStock(self.connection, itemId=item["id"], groupByLot=True)[(item["id"], expired[0]["lotCode"])]
+        self.assertGreater(lotStock, 0)
+        self.assertEqual(
+            [(lot["lotCode"], lot["expiryDate"]) for lot in item["expiredLots"]],
+            [(expired[0]["lotCode"], "2026-10-01")],
+        )
+        self.assertFalse(item["needsReorder"])
+
+    def testInv064CilantroOutboundUsesNonExpiredLot(self) -> None:
+        loadInventorySeed(self.connection, now=self.fixedNow)
+        item = self.cilantro()
+        outbounds = self.connection.execute(
+            "SELECT lotCode FROM stockMovements WHERE itemId = ? AND movementType = 'outbound'", (item["id"],)
+        ).fetchall()
+        self.assertTrue(outbounds)
+        expiryByLot = {lot["lotCode"]: lot["expiryDate"] for lot in self.lotRows(item["id"])}
+        self.assertEqual(len(expiryByLot), 2)
+        for outbound in outbounds:
+            self.assertGreater(expiryByLot[outbound["lotCode"]], "2026-10-28")
+
+    def testInv065OtherSeedLotsExpireAfterLoadDay(self) -> None:
+        loadInventorySeed(self.connection, now=self.fixedNow)
+        lots = self.connection.execute("SELECT lotCode, expiryDate, itemId FROM inventoryLots").fetchall()
+        self.assertGreater(len(lots), 8)
+        cilantroId = self.cilantro()["id"]
+        others = [lot for lot in lots if lot["expiryDate"] != "2026-10-01"]
+        self.assertEqual(len(lots) - len(others), 1)
+        for lot in others:
+            with self.subTest(lotCode=lot["lotCode"]):
+                self.assertGreater(lot["expiryDate"], "2026-10-28")
+        self.assertIn(cilantroId, {lot["itemId"] for lot in others})
+
+    def testInv065LotDatesFollowTheLoadDay(self) -> None:
+        later = datetime(2027, 3, 1, 8, 0, 0, tzinfo=timezone.utc)
+        loadInventorySeed(self.connection, now=later)
+        expiryDates = sorted(row["expiryDate"] for row in self.connection.execute("SELECT expiryDate FROM inventoryLots"))
+        self.assertEqual(expiryDates[0], "2026-10-01")
+        self.assertTrue(all(expiryDate > "2027-03-01" for expiryDate in expiryDates[1:]))
+
+
 if __name__ == "__main__":
     unittest.main()

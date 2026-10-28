@@ -10,6 +10,8 @@ seedLotLifeDays = 30
 lotControlledSeedCategories = ("meat", "produce")
 adjustmentReasonCycle = ("waste", "theft", "count_correction")
 reorderSeedItems = (("laArepita", "Salsa de ajo de la casa"), ("theBigSauce", "Envases para llevar"))
+expiredLotItem = ("queChille", "Cilantro")
+expiredLotExpiryDate = "2026-10-01"
 
 seedItems = (
     ("laArepita", "Punta de anca de res", "meat", "kg", "20"),
@@ -31,20 +33,37 @@ seedItems = (
 )
 
 
-def _movementPlan(position: int, locationId: str, name: str, reorderPointMilli: int) -> list[tuple[str, int, str]]:
-    """Movements (type, signed thousandths, reason) of one item, sized from its reorder point."""
+def _movementPlan(
+    position: int,
+    locationId: str,
+    name: str,
+    category: str,
+    reorderPointMilli: int,
+) -> list[tuple[str, int, str, str | None]]:
+    """Movements (type, signed thousandths, reason, lot) of one item, sized from its reorder point.
+
+    The lot is "fresh", "expired" or None for items without lot control.
+    """
+    freshLot = "fresh" if category in lotControlledSeedCategories else None
+    if (locationId, name) == expiredLotItem:
+        return [
+            ("inbound", 4 * reorderPointMilli, "Compra semanal", "expired"),
+            ("adjustment", -(reorderPointMilli // 2), "waste", "expired"),
+            ("inbound", 2 * reorderPointMilli, "Compra semanal", "fresh"),
+            ("outbound", reorderPointMilli, "Consumo de cocina", "fresh"),
+        ]
     if (locationId, name) in reorderSeedItems:
         return [
-            ("inbound", 2 * reorderPointMilli, "Compra semanal"),
-            ("outbound", reorderPointMilli, "Consumo de cocina"),
-            ("adjustment", -reorderPointMilli // 5, "waste"),
+            ("inbound", 2 * reorderPointMilli, "Compra semanal", freshLot),
+            ("outbound", reorderPointMilli, "Consumo de cocina", freshLot),
+            ("adjustment", -(reorderPointMilli // 5), "waste", freshLot),
         ]
     reason = adjustmentReasonCycle[position % len(adjustmentReasonCycle)]
     adjustment = reorderPointMilli // 2
     return [
-        ("inbound", 4 * reorderPointMilli, "Compra semanal"),
-        ("outbound", reorderPointMilli, "Consumo de cocina"),
-        ("adjustment", adjustment if reason == "count_correction" else -adjustment, reason),
+        ("inbound", 4 * reorderPointMilli, "Compra semanal", freshLot),
+        ("outbound", reorderPointMilli, "Consumo de cocina", freshLot),
+        ("adjustment", adjustment if reason == "count_correction" else -adjustment, reason, freshLot),
     ]
 
 
@@ -64,18 +83,26 @@ def loadInventorySeed(connection: sqlite3.Connection, now: datetime | None = Non
             },
             now=moment,
         )
-        lotCode = f"{locationId}-{position + 1:02d}" if category in lotControlledSeedCategories else None
         reorderPointMilli = parseQuantity(reorderPoint, unitOfMeasure)
-        for movementType, quantityMilli, reason in _movementPlan(position, locationId, name, reorderPointMilli):
+        lotBaseCode = f"{locationId}-{position + 1:02d}"
+        lots = {
+            "fresh": (lotBaseCode, lotExpiryDate),
+            "expired": (f"{lotBaseCode}-expired", expiredLotExpiryDate),
+        }
+        openedLots = set()
+        for movementType, quantityMilli, reason, lotRole in _movementPlan(
+            position, locationId, name, category, reorderPointMilli
+        ):
             fields = {
                 "movementType": movementType,
                 "quantity": formatQuantity(quantityMilli, unitOfMeasure),
                 "reason": reason,
             }
-            if lotCode is not None:
-                fields["lotCode"] = lotCode
-                if movementType == "inbound":
-                    fields["expiryDate"] = lotExpiryDate
+            if lotRole is not None:
+                fields["lotCode"], expiryDate = lots[lotRole]
+                if lotRole not in openedLots:
+                    fields["expiryDate"] = expiryDate
+                    openedLots.add(lotRole)
             registerMovement(connection, item["id"], fields, now=moment)
             movementCount += 1
     return {"items": len(seedItems), "movements": movementCount}
