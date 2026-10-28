@@ -1225,3 +1225,24 @@
 - **Desviaciones evitadas:** 05 → solo T-29, sin alterar spec o plan; no se añadieron dependencias.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): mostrar informes de stock en el backoffice`
+
+## Paso 07 (inventario) — Verificación y trazabilidad
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** Paso 07 · **Criterios:** INV-001–INV-066
+- **Qué se hizo:**
+  - Suite completa ejecutada: 188 pruebas, resultado `OK`.
+  - Recorrido HTTP registrado con base SQLite temporal: página 200; cuatro artículos por local; señales de reorden esperadas; ajustes `waste`, `theft` y `count_correction` separados; stock negativo y salida de lote caducado rechazados con 409; lote inexistente rechazado con 404 como recurso inexistente; ajuste `waste` 201 y saldo caducado posterior 0.000.
+  - Se comprobó la semilla previa (16 artículos, 49 movimientos) sin tocar la base persistente. La acción `waste` modificó solo la base temporal, cuyo estado resultante queda indicado en el registro.
+  - La tabla de trazabilidad cubre los 66 criterios con tareas, 152 métodos de test asociados y hashes de commits; cobertura validada: 66/66 con tests nombrados y todas las referencias existentes. Incluye pruebas de comportamientos no deseados.
+  - No hubo inspección visual en navegador: no se encontró navegador instalado en el entorno; no se afirma resultado visual.
+- **Archivos:**
+  - `memory-bank/registro/verificacion-inventario.md` — suite y resultados reales del recorrido.
+  - `memory-bank/registro/trazabilidad-inventario.md` — matriz INV → tarea → test → commit.
+  - `memory-bank/estado-actual.md` — cierre de Paso 07 y paso siguiente.
+  - `memory-bank/historial-commits.md` — bitácora de este paso.
+- **Reglas aplicadas:** 00-commits-y-bitacora, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** se considera aprobado el HTTP 404 para lote inexistente según el contrato de recurso inexistente; queda explícita la limitación de no inspección visual.
+- **Desviaciones evitadas:** 00 → solo archivos del paso, sin mezclar el cierre del Paso 09; 05 → no se cambió spec, plan ni código.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(memory-bank): verificar y trazar el gestor de inventario`

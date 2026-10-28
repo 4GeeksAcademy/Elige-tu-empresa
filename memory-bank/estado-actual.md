@@ -60,12 +60,13 @@
 - Paso 06, T-27: página `inventory.html` con alta, edición, baja y listado por local; 181 pruebas pasan; commit `066c3ea`.
 - Paso 06, T-28: formulario de movimientos con entrada, salida y ajuste, campos contextuales de motivo/lote/caducidad y rechazo del servidor visible; 185 pruebas pasan; commit `e295b29`.
 - Paso 06, T-29: informe por artículo, señal de reorden por local, detalle de lotes caducados y guías bilingües; 188 pruebas pasan; commit `feat(inventory): mostrar informes de stock en el backoffice`.
+- Paso 07: suite completa (188 pruebas OK), recorrido HTTP con semilla y trazabilidad INV-001–INV-066 documentados en `registro/verificacion-inventario.md` y `registro/trazabilidad-inventario.md`; commit `docs(memory-bank): verificar y trazar el gestor de inventario`.
 
 ## En curso
-- Paso 07 del inventario: recorrido manual del backoffice con servidor y semilla reales.
+- Paso 09 del inventario: cierre de memoria, revisión de historial y descripción del PR.
 
 ## Siguiente
-- Al completar el Paso 07, Paso 09 del inventario: cierre de memoria y PR.
+- Tras completar el Paso 09 y recibir autorización, publicar la rama y abrir el PR; no hacer merge.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
