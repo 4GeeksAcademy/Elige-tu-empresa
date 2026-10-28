@@ -151,6 +151,27 @@ class InventorySchemaTestCase(unittest.TestCase):
         )
         return values["lotCode"]
 
+    def insertMovement(self, itemId: str, **overrides: object) -> str:
+        values = {
+            "id": generateId(),
+            "itemId": itemId,
+            "lotCode": None,
+            "movementType": "inbound",
+            "quantityMilli": 5000,
+            "reason": "purchase",
+            "createdAt": formatUtcTimestamp(utcNow()),
+        }
+        values.update(overrides)
+        self.connection.execute(
+            """
+            INSERT INTO stockMovements (
+                id, itemId, lotCode, movementType, quantityMilli, reason, createdAt
+            ) VALUES (:id, :itemId, :lotCode, :movementType, :quantityMilli, :reason, :createdAt)
+            """,
+            values,
+        )
+        return values["id"]
+
 
 class InventoryItemSchemaTests(InventorySchemaTestCase):
     def testInv037SchemaHasNoStockColumn(self) -> None:
@@ -191,6 +212,84 @@ class InventoryLotSchemaTests(InventorySchemaTestCase):
         self.insertLot(itemId)
         with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
             self.connection.execute("DELETE FROM inventoryLots")
+
+
+class StockMovementSchemaTests(InventorySchemaTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.itemId = self.insertItem()
+
+    def testInv011SqlStoresItemTypeQuantityReasonAndCreatedAt(self) -> None:
+        createdAt = formatUtcTimestamp(utcNow())
+        movementId = self.insertMovement(
+            self.itemId,
+            movementType="inbound",
+            quantityMilli=12500,
+            reason="weekly delivery",
+            createdAt=createdAt,
+        )
+        row = self.connection.execute("SELECT * FROM stockMovements WHERE id = ?", (movementId,)).fetchone()
+        self.assertEqual(
+            (row["itemId"], row["movementType"], row["quantityMilli"], row["reason"], row["createdAt"]),
+            (self.itemId, "inbound", 12500, "weekly delivery", createdAt),
+        )
+        self.assertIsNone(row["lotCode"])
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insertMovement(self.itemId, movementType="transfer")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insertMovement(generateId())
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insertMovement(self.itemId, createdAt=None)
+
+    def testInv017SqlRejectsNonPositiveInboundAndOutbound(self) -> None:
+        for movementType in ("inbound", "outbound"):
+            for quantityMilli in (0, -1000):
+                with self.subTest(movementType=movementType, quantityMilli=quantityMilli):
+                    with self.assertRaises(sqlite3.IntegrityError):
+                        self.insertMovement(self.itemId, movementType=movementType, quantityMilli=quantityMilli)
+
+    def testInv018SqlRejectsZeroAdjustment(self) -> None:
+        for reason in ("waste", "theft", "count_correction"):
+            with self.subTest(reason=reason):
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=0, reason=reason)
+
+    def testInv019SqlRejectsPositiveWasteAndTheft(self) -> None:
+        for reason in ("waste", "theft"):
+            with self.subTest(reason=reason):
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=1000, reason=reason)
+        self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=1000, reason="count_correction")
+        self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=-1000, reason="count_correction")
+
+    def testInv021SqlRejectsBlankReasonOnInboundAndOutbound(self) -> None:
+        for movementType in ("inbound", "outbound"):
+            for reason in ("", "   "):
+                with self.subTest(movementType=movementType, reason=reason):
+                    with self.assertRaises(sqlite3.IntegrityError):
+                        self.insertMovement(self.itemId, movementType=movementType, reason=reason)
+
+    def testInv022SqlRejectsAdjustmentReasonOutsideCatalog(self) -> None:
+        for reason in ("", "purchase", "Waste"):
+            with self.subTest(reason=reason):
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=-1000, reason=reason)
+
+    def testInv033SqlRejectsLotOfAnotherItem(self) -> None:
+        otherItemId = self.insertItem(name="Cebolla cabezona")
+        self.insertLot(self.itemId, lotCode="lotA")
+        self.insertMovement(self.itemId, lotCode="lotA")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insertMovement(otherItemId, lotCode="lotA")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insertMovement(self.itemId, lotCode="unknownLot")
+
+    def testInv039SqlRejectsMovementUpdateAndDelete(self) -> None:
+        movementId = self.insertMovement(self.itemId)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
+            self.connection.execute("UPDATE stockMovements SET quantityMilli = 1 WHERE id = ?", (movementId,))
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
+            self.connection.execute("DELETE FROM stockMovements WHERE id = ?", (movementId,))
 
 
 if __name__ == "__main__":

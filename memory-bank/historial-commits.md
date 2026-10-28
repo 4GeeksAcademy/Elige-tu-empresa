@@ -652,3 +652,24 @@
 - **Desviaciones evitadas:** 05 → quité dos tests míos que correspondían a INV-028 e INV-033 y quedan para T-17 y T-04.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): crear tablas de artículos y lotes`
+
+## Paso 06 (inventario) — T-04 Esquema de movimientos
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-04 · **Criterios:** INV-011, INV-017, INV-018, INV-019, INV-021, INV-022, INV-033, INV-039
+- **Qué se hizo:**
+  - Escritos primero ocho tests «Sql» y el ayudante `insertMovement` en `test_inventory.py`; fallaban porque la tabla no existía.
+  - Añadida a `initializeDatabase` la tabla `stockMovements`: `CHECK` de catálogo de tipo, `CHECK` de signo y motivo (entradas y salidas positivas con motivo no vacío; ajustes distintos de cero, motivo del catálogo y negativos si son `waste` o `theft`), clave foránea compuesta `(itemId, lotCode)` hacia `inventoryLots(itemId, lotCode)`, dos índices y triggers que impiden modificar o borrar un movimiento (PD-04, PD-07).
+  - Con `lotCode` nulo la clave compuesta no se evalúa, así que los artículos sin lote registran movimientos.
+  - Suite completa: 57 pruebas pasan.
+- **Archivos:**
+  - `services/api/database.py` — tabla, índices y triggers
+  - `services/api/tests/test_inventory.py` — tests de T-04
+  - `specs/inventory-manager/tasks.md` — T-04 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** los tests de aceptación de esta tarea usan solo `inbound` y ajustes `count_correction`, porque T-05 prohibirá salidas sin stock previo.
+- **Desviaciones evitadas:** 05 → solo T-04; el stock no negativo se deja para T-05.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): crear tabla de movimientos de solo añadir`

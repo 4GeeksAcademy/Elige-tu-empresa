@@ -118,6 +118,58 @@ def initializeDatabase(connection: sqlite3.Connection) -> None:
             SELECT RAISE(ABORT, 'Inventory lots are immutable');
         END
         """,
+        f"""
+        CREATE TABLE IF NOT EXISTS stockMovements (
+            id TEXT PRIMARY KEY NOT NULL
+                CHECK (
+                    length(id) = 36
+                    AND id GLOB '????????-????-4???-[89ab]???-????????????'
+                    AND id NOT GLOB '*[^0-9a-f-]*'
+                ),
+            itemId TEXT NOT NULL REFERENCES inventoryItems(id),
+            lotCode TEXT,
+            {_catalogCheck("movementType", catalogIds("movementTypes"))},
+            quantityMilli INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (itemId, lotCode) REFERENCES inventoryLots(itemId, lotCode),
+            CHECK (
+                (
+                    movementType IN ('inbound', 'outbound')
+                    AND quantityMilli > 0
+                    AND length(trim(reason)) > 0
+                )
+                OR (
+                    movementType = 'adjustment'
+                    AND quantityMilli <> 0
+                    AND reason IN ({_sqlValues(catalogIds("adjustmentReasons"))})
+                    AND (reason = 'count_correction' OR quantityMilli < 0)
+                )
+            )
+        )
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS stockMovementsItemIdCreatedAt
+        ON stockMovements (itemId, createdAt)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS stockMovementsItemIdLotCode
+        ON stockMovements (itemId, lotCode)
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS stockMovements_preventUpdate
+        BEFORE UPDATE ON stockMovements
+        BEGIN
+            SELECT RAISE(ABORT, 'Stock movements are immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS stockMovements_preventDelete
+        BEFORE DELETE ON stockMovements
+        BEGIN
+            SELECT RAISE(ABORT, 'Stock movements are immutable');
+        END
+        """,
     )
 
     for statement in schemaStatements:
