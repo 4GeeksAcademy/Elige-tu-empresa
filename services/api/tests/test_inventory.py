@@ -14,6 +14,7 @@ from services.api.inventory import (
     deleteItem,
     formatQuantity,
     getItem,
+    getReorderSignal,
     getStockReport,
     isLotExpired,
     listItems,
@@ -1456,6 +1457,78 @@ class StockReportTests(LotTestCase):
         for itemId in (generateId(), "not-a-uuid"):
             with self.assertRaises(LookupError):
                 getStockReport(self.connection, itemId)
+
+
+class ReorderSignalTests(InventorySchemaTestCase):
+    fixedNow = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+    def createInLocation(self, name: str, reorderPoint: str, locationId: str = "queChille", **overrides: object) -> str:
+        fields = {
+            "name": name,
+            "locationId": locationId,
+            "category": "beverages",
+            "unitOfMeasure": "l",
+            "reorderPoint": reorderPoint,
+        }
+        fields.update(overrides)
+        return createItem(self.connection, fields, now=self.fixedNow)["id"]
+
+    def stock(self, itemId: str, quantity: str, **extra: object) -> None:
+        registerMovement(
+            self.connection,
+            itemId,
+            {"movementType": "inbound", "quantity": quantity, "reason": "delivery", **extra},
+            now=self.fixedNow,
+        )
+
+    def testInv041ReorderSignalReturnsItemsAtOrBelowReorderPoint(self) -> None:
+        atPoint = self.createInLocation("En el punto", "2")
+        below = self.createInLocation("Por debajo", "5")
+        above = self.createInLocation("Por encima", "2")
+        elsewhere = self.createInLocation("Otro local", "9", locationId="chilliBeans")
+        self.stock(atPoint, "2")
+        self.stock(below, "1.25")
+        self.stock(above, "7")
+        self.stock(elsewhere, "1")
+        signal = getReorderSignal(self.connection, "queChille")
+        self.assertEqual(
+            signal,
+            [
+                {"itemId": atPoint, "name": "En el punto", "unitOfMeasure": "l", "stock": "2.000", "reorderPoint": "2.000"},
+                {"itemId": below, "name": "Por debajo", "unitOfMeasure": "l", "stock": "1.250", "reorderPoint": "5.000"},
+            ],
+        )
+        self.assertEqual([entry["itemId"] for entry in getReorderSignal(self.connection, "chilliBeans")], [elsewhere])
+
+    def testInv041ItemWithoutMovementsAppears(self) -> None:
+        empty = self.createInLocation("Sin movimientos", "3", locationId="theBigSauce")
+        signal = getReorderSignal(self.connection, "theBigSauce")
+        self.assertEqual([(entry["itemId"], entry["stock"], entry["reorderPoint"]) for entry in signal], [(empty, "0.000", "3.000")])
+        self.assertEqual(getReorderSignal(self.connection, "laArepita"), [])
+
+    def testInv042ReorderSignalExcludesItemsAboveReorderPoint(self) -> None:
+        item = self.createInLocation("Por encima", "2")
+        self.stock(item, "2.001")
+        self.assertEqual(getReorderSignal(self.connection, "queChille"), [])
+
+    def testInv044RejectsReorderSignalOfUnknownLocation(self) -> None:
+        for locationId in ("unknown", "", None, 5):
+            with self.subTest(locationId=locationId):
+                with self.assertRaises(LookupError):
+                    getReorderSignal(self.connection, locationId)
+
+    def testInv049ReorderSignalCountsExpiredStock(self) -> None:
+        meatId = self.createInLocation("Costilla", "4", category="meat", unitOfMeasure="kg")
+        self.stock(meatId, "5", lotCode="oldLot", expiryDate="2026-10-01")
+        self.assertEqual(getItem(self.connection, meatId, now=self.fixedNow)["expiredLots"][0]["stock"], "5.000")
+        self.assertEqual(getReorderSignal(self.connection, "queChille"), [])
+        registerMovement(
+            self.connection,
+            meatId,
+            {"movementType": "adjustment", "quantity": "-1", "reason": "waste", "lotCode": "oldLot"},
+            now=self.fixedNow,
+        )
+        self.assertEqual([entry["itemId"] for entry in getReorderSignal(self.connection, "queChille")], [meatId])
 
 
 class ConcurrentMovementTests(unittest.TestCase):

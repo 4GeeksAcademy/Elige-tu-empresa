@@ -1019,3 +1019,24 @@
 - **Desviaciones evitadas:** 05 → sin señal de reorden ni rutas.
 - **Cambios respecto al plan:** ninguno; el plan §5 ya incluía `expiredLots` en la vista.
 - **Commit:** `feat(inventory): generar el informe de stock de un artículo`
+
+## Paso 06 (inventario) — T-21 Señal de reorden
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-21 · **Criterios:** INV-041, INV-042, INV-044, INV-049
+- **Qué se hizo:**
+  - Escritos primero cinco tests en `ReorderSignalTests`; fallaban por falta de `getReorderSignal` (error de importación).
+  - Añadido `getReorderSignal(connection, locationId)`: devuelve, ordenados por nombre, los artículos del local con stock igual o menor que su `reorderPoint` (`itemId`, `name`, `unitOfMeasure`, `stock` y `reorderPoint`), incluidos los que no tienen movimientos; un local fuera del catálogo, o que no sea texto, lanza `LookupError`. Usa `calculateStock` y cuenta el stock caducado.
+  - Un primer intento de los tests heredaba de `MovementTestCase`, cuyo artículo de base también aparecía en la señal y daba tres fallos falsos; la clase usa ahora `InventorySchemaTestCase`. Para ver el rojo real, sustituí temporalmente la función por un stub (8 errores) y la restauré; la suite queda verde.
+  - Suite completa: 144 pruebas pasan; los tests de concurrencia se repitieron 5 veces sin fallos.
+- **Archivos:**
+  - `services/api/inventory.py` — `getReorderSignal`
+  - `services/api/tests/test_inventory.py` — tests de T-21
+  - `specs/inventory-manager/tasks.md` — T-21 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el orden de la señal (nombre, id) es una decisión de presentación; el spec no lo fija. Con T-21 queda completa la capa de casos de uso (T-01 a T-21).
+- **Desviaciones evitadas:** 05 → sin semilla ni rutas.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): calcular la señal de reorden por local`

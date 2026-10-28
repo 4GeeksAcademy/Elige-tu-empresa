@@ -485,3 +485,23 @@ def getStockReport(connection: sqlite3.Connection, itemId: str, now: datetime | 
         ],
         "lots": lots,
     }
+
+
+def getReorderSignal(connection: sqlite3.Connection, locationId: str) -> list[dict]:
+    if not isinstance(locationId, str) or locationId not in catalogIds("locations"):
+        raise LookupError("Location not found")
+    stockByItem = calculateStock(connection, locationId=locationId)
+    rows = connection.execute(
+        "SELECT * FROM inventoryItems WHERE locationId = ? ORDER BY name, id", (locationId,)
+    ).fetchall()
+    return [
+        {
+            "itemId": row["id"],
+            "name": row["name"],
+            "unitOfMeasure": row["unitOfMeasure"],
+            "stock": formatQuantity(stockByItem[row["id"]], row["unitOfMeasure"]),
+            "reorderPoint": formatQuantity(row["reorderPointMilli"], row["unitOfMeasure"]),
+        }
+        for row in rows
+        if stockByItem[row["id"]] <= row["reorderPointMilli"]
+    ]
