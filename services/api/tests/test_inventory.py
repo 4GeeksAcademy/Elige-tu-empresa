@@ -1069,7 +1069,7 @@ class LotControlTests(MovementTestCase):
                 self.assertEqual(adjustment["stock"], "2.000")
 
 
-class InboundLotTests(MovementTestCase):
+class LotTestCase(MovementTestCase):
     def createMeatItem(self, name: str = "Punta de anca de res") -> str:
         return createItem(
             self.connection,
@@ -1097,6 +1097,9 @@ class InboundLotTests(MovementTestCase):
     def lotRows(self) -> list:
         return self.connection.execute("SELECT * FROM inventoryLots ORDER BY lotCode").fetchall()
 
+
+
+class InboundLotTests(LotTestCase):
     def testInv028InboundWithNewLotCreatesLot(self) -> None:
         meatId = self.createMeatItem()
         movement = registerMovement(self.connection, meatId, self.lotInbound(), now=self.fixedNow)
@@ -1178,6 +1181,74 @@ class InboundLotTests(MovementTestCase):
             self.connection, meatId, self.lotInbound(lotCode="oldLot", expiryDate=None, quantity="1"), now=self.fixedNow
         )
         self.assertEqual(again["stock"], "6.000")
+
+
+class LotMovementTests(LotTestCase):
+    def lotRequest(self, movementType: str, lotCode: str, quantity: str, reason: str) -> dict:
+        return {"movementType": movementType, "quantity": quantity, "reason": reason, "lotCode": lotCode}
+
+    def stockedMeatItem(self) -> str:
+        meatId = self.createMeatItem()
+        registerMovement(self.connection, meatId, self.lotInbound(lotCode="lotA", quantity="3"))
+        registerMovement(self.connection, meatId, self.lotInbound(lotCode="lotB", quantity="5", expiryDate="2026-12-15"))
+        return meatId
+
+    def testInv032RejectsOutboundOnUnknownLot(self) -> None:
+        meatId = self.stockedMeatItem()
+        with self.assertRaisesRegex(LookupError, "Lot"):
+            registerMovement(self.connection, meatId, self.lotRequest("outbound", "ghost", "1", "sale"))
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="4"))
+        with self.assertRaisesRegex(LookupError, "Lot"):
+            registerMovement(self.connection, self.itemId, self.lotRequest("outbound", "ghost", "1", "sale"))
+        self.assertEqual(self.movementCount(), 3)
+
+    def testInv032RejectsAdjustmentOnUnknownLot(self) -> None:
+        meatId = self.stockedMeatItem()
+        for reason, quantity in (("waste", "-1"), ("count_correction", "1")):
+            with self.subTest(reason=reason):
+                with self.assertRaisesRegex(LookupError, "Lot"):
+                    registerMovement(self.connection, meatId, self.lotRequest("adjustment", "ghost", quantity, reason))
+        self.assertEqual(self.movementCount(), 2)
+
+    def testInv033RejectsOutboundOnLotOfAnotherItem(self) -> None:
+        meatId = self.stockedMeatItem()
+        otherMeatId = self.createMeatItem("Pechuga de pollo")
+        registerMovement(self.connection, otherMeatId, self.lotInbound(lotCode="lotC", quantity="9"))
+        with self.assertRaisesRegex(BusinessRuleError, "another item"):
+            registerMovement(self.connection, meatId, self.lotRequest("outbound", "lotC", "1", "sale"))
+        with self.assertRaisesRegex(BusinessRuleError, "another item"):
+            registerMovement(self.connection, meatId, self.lotRequest("adjustment", "lotC", "-1", "waste"))
+        self.assertEqual(self.movementCount(), 3)
+        self.assertEqual(calculateStock(self.connection, itemId=otherMeatId, groupByLot=True), {(otherMeatId, "lotC"): 9000})
+
+    def testInv034RejectsMovementBelowLotStock(self) -> None:
+        meatId = self.stockedMeatItem()
+        self.assertEqual(calculateStock(self.connection, itemId=meatId), {meatId: 8000})
+        with self.assertRaisesRegex(BusinessRuleError, "lot"):
+            registerMovement(self.connection, meatId, self.lotRequest("outbound", "lotA", "3.001", "sale"))
+        with self.assertRaisesRegex(BusinessRuleError, "lot"):
+            registerMovement(self.connection, meatId, self.lotRequest("adjustment", "lotA", "-3.001", "waste"))
+        with self.assertRaisesRegex(BusinessRuleError, "lot"):
+            registerMovement(self.connection, meatId, self.lotRequest("adjustment", "lotA", "-4", "count_correction"))
+        self.assertEqual(self.movementCount(), 2)
+        registerMovement(self.connection, meatId, self.lotRequest("outbound", "lotA", "3", "sale"))
+        self.assertEqual(
+            calculateStock(self.connection, itemId=meatId, groupByLot=True),
+            {(meatId, "lotA"): 0, (meatId, "lotB"): 5000},
+        )
+        with self.assertRaisesRegex(BusinessRuleError, "lot"):
+            registerMovement(self.connection, meatId, self.lotRequest("outbound", "lotA", "0.001", "sale"))
+
+    def testInv035LotStockIgnoresOtherLots(self) -> None:
+        meatId = self.stockedMeatItem()
+        outbound = registerMovement(self.connection, meatId, self.lotRequest("outbound", "lotB", "2", "sale"))
+        registerMovement(self.connection, meatId, self.lotRequest("adjustment", "lotA", "-0.5", "theft"))
+        self.assertEqual((outbound["lotCode"], outbound["stock"]), ("lotB", "6.000"))
+        self.assertEqual(
+            calculateStock(self.connection, itemId=meatId, groupByLot=True),
+            {(meatId, "lotA"): 2500, (meatId, "lotB"): 3000},
+        )
+        self.assertEqual(calculateStock(self.connection, itemId=meatId), {meatId: 5500})
 
 
 class ConcurrentMovementTests(unittest.TestCase):
@@ -1275,7 +1346,8 @@ class ConcurrentMovementTests(unittest.TestCase):
             if isinstance(outcome, BusinessRuleError)
         ]
         self.assertTrue(rejectedQuantities)
-        self.assertLess(finalStock, min(rejectedQuantities))
+        # The only increase in the batch is the 0.5 inbound, which may land after a rejection.
+        self.assertLess(finalStock, min(rejectedQuantities) + 500)
 
 
 if __name__ == "__main__":

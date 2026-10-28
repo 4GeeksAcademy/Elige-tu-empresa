@@ -288,11 +288,11 @@ def _resolveLot(
         expiryDate = _validatedExpiryDate(expiryDate)
         if movementType != "inbound":
             raise ValueError("expiryDate only applies to inbound movements")
-    if movementType != "inbound":
-        raise NotImplementedError("lots on outbound and adjustment movements are not implemented yet")
 
     lotRow = connection.execute("SELECT * FROM inventoryLots WHERE lotCode = ?", (lotCode,)).fetchone()
     if lotRow is None:
+        if movementType != "inbound":
+            raise LookupError("Lot not found")
         if expiryDate is None:
             raise ValueError("expiryDate is required to open a new lot")
         return lotCode, expiryDate
@@ -344,6 +344,10 @@ def registerMovement(
         lotCode, newLotExpiryDate = _resolveLot(connection, itemRow, movementType, fields)
         if itemRow["category"] in lotControlledCategories and lotCode is None:
             raise BusinessRuleError(f"A lot is required for {itemRow['category']} items")
+        if stockChangeMilli < 0 and lotCode is not None:
+            lotStockMilli = calculateStock(connection, itemId=itemId, groupByLot=True).get((itemId, lotCode), 0)
+            if lotStockMilli + stockChangeMilli < 0:
+                raise BusinessRuleError("Not enough stock in the lot for this movement")
         if stockChangeMilli < 0 and calculateStock(connection, itemId=itemId)[itemId] + stockChangeMilli < 0:
             raise BusinessRuleError("Not enough stock for this movement")
 

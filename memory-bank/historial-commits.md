@@ -954,3 +954,24 @@
 - **Desviaciones evitadas:** 05 → no se implementó el lote en salidas ni ajustes.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): registrar entradas con lote`
+
+## Paso 06 (inventario) — T-18 Salidas y ajustes con lote
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-18 · **Criterios:** INV-032, INV-033, INV-034, INV-035
+- **Qué se hizo:**
+  - Extraída en `test_inventory.py` la base `LotTestCase` (ayudantes de lote) y escritos cinco tests en `LotMovementTests`; fallaban con el `NotImplementedError` provisional de T-17 (6 errores).
+  - `_resolveLot` ya no lanza `NotImplementedError`: una salida o un ajuste con un lote inexistente lanza `LookupError` y con el lote de otro artículo, `BusinessRuleError`. `registerMovement` rechaza con `BusinessRuleError` un movimiento que dejaría el stock de su lote por debajo de cero, comprobado antes que el stock del artículo.
+  - Suite completa: 125 pruebas pasan.
+  - **Incidencia:** `testInv025OnlyMovementsThatFitAreRegistered` (T-15) falló una vez de forma intermitente. El defecto era de mi test: la entrada de 0,5 del lote puede llegar después de un rechazo y subir el stock final por encima de la cantidad rechazada, así que la invariante `final < rechazada` era demasiado fuerte. Corregida a `final < rechazada + 0,5` con comentario; 40 ejecuciones seguidas sin fallos. El código de producción no cambió por esto. En T-15 solo repetí el test tres veces, insuficiente para detectar la intermitencia.
+- **Archivos:**
+  - `services/api/inventory.py` — lote en salidas y ajustes
+  - `services/api/tests/test_inventory.py` — tests de T-18 y corrección del test de T-15
+  - `specs/inventory-manager/tasks.md` — T-18 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** las reglas de lotes caducados quedan para T-19; los tests usan fechas de caducidad futuras respecto al instante fijado.
+- **Desviaciones evitadas:** 05 → solo T-18.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): registrar salidas y ajustes sobre un lote`
