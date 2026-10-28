@@ -49,13 +49,14 @@
 - Paso 06, T-16: lote obligatorio en `meat` y `produce`; 113 pruebas pasan; commit `cc77f44`.
 - Paso 06, T-17: entradas con lote (apertura, suma y rechazos); 120 pruebas pasan; commit `bf1c538`.
 - Paso 06, T-18: salidas y ajustes sobre un lote; 125 pruebas pasan; commit `7f79857`.
-- Paso 06, T-19: reglas de lotes caducados; 131 pruebas pasan; pendiente de commit.
+- Paso 06, T-19: reglas de lotes caducados; 131 pruebas pasan; commit `3f667ba`.
+- Paso 06, T-20: `getStockReport` y `expiredLots` en la vista del artículo; 139 pruebas pasan; pendiente de commit.
 
 ## En curso
-- Paso 06 del inventario: T-19 hecha, a la espera de tu `OK commit`.
+- Paso 06 del inventario: T-20 hecha, a la espera de tu `OK commit`.
 
 ## Siguiente
-- Paso 06 del inventario (modo Agent): T-20 (informe de stock), con tests primero.
+- Paso 06 del inventario (modo Agent): T-21 (señal de reorden), con tests primero.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.

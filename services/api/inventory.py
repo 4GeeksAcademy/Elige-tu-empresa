@@ -139,9 +139,39 @@ def _validatedItemFields(fields: dict) -> dict:
     return validated
 
 
-def _itemView(connection: sqlite3.Connection, row: sqlite3.Row, stockMilli: int | None = None) -> dict:
-    if stockMilli is None:
-        stockMilli = calculateStock(connection, itemId=row["id"])[row["id"]]
+def _expiredLotsByItem(
+    connection: sqlite3.Connection,
+    now: datetime,
+    itemId: str | None = None,
+    locationId: str | None = None,
+) -> dict[str, list[dict]]:
+    """Lots past their expiry date that still hold stock, grouped by item."""
+    stockByLot = calculateStock(connection, itemId=itemId, locationId=locationId, groupByLot=True)
+    rows = connection.execute(
+        """
+        SELECT l.itemId, l.lotCode, l.expiryDate, i.unitOfMeasure
+        FROM inventoryLots l
+        JOIN inventoryItems i ON i.id = l.itemId
+        WHERE (:itemId IS NULL OR i.id = :itemId) AND (:locationId IS NULL OR i.locationId = :locationId)
+        ORDER BY l.expiryDate, l.lotCode
+        """,
+        {"itemId": itemId, "locationId": locationId},
+    )
+    expiredLots: dict[str, list[dict]] = {}
+    for row in rows:
+        lotStockMilli = stockByLot.get((row["itemId"], row["lotCode"]), 0)
+        if lotStockMilli > 0 and isLotExpired(row["expiryDate"], now):
+            expiredLots.setdefault(row["itemId"], []).append(
+                {
+                    "lotCode": row["lotCode"],
+                    "expiryDate": row["expiryDate"],
+                    "stock": formatQuantity(lotStockMilli, row["unitOfMeasure"]),
+                }
+            )
+    return expiredLots
+
+
+def _itemView(row: sqlite3.Row, stockMilli: int, expiredLots: list[dict]) -> dict:
     unitOfMeasure = row["unitOfMeasure"]
     return {
         "id": row["id"],
@@ -152,8 +182,16 @@ def _itemView(connection: sqlite3.Connection, row: sqlite3.Row, stockMilli: int 
         "reorderPoint": formatQuantity(row["reorderPointMilli"], unitOfMeasure),
         "stock": formatQuantity(stockMilli, unitOfMeasure),
         "needsReorder": stockMilli <= row["reorderPointMilli"],
+        "expiredLots": expiredLots,
         "createdAt": row["createdAt"],
     }
+
+
+def _singleItemView(connection: sqlite3.Connection, itemId: str, now: datetime | None = None) -> dict:
+    row = _fetchItemRow(connection, itemId)
+    stockMilli = calculateStock(connection, itemId=itemId)[itemId]
+    expiredLots = _expiredLotsByItem(connection, now or utcNow(), itemId=itemId).get(itemId, [])
+    return _itemView(row, stockMilli, expiredLots)
 
 
 def createItem(connection: sqlite3.Connection, fields: dict, now: datetime | None = None) -> dict:
@@ -176,8 +214,7 @@ def createItem(connection: sqlite3.Connection, fields: dict, now: datetime | Non
                 formatUtcTimestamp(now or utcNow()),
             ),
         )
-        row = connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (itemId,)).fetchone()
-        return _itemView(connection, row)
+        return _singleItemView(connection, itemId, now)
 
 
 def _fetchItemRow(connection: sqlite3.Connection, itemId: str) -> sqlite3.Row:
@@ -227,7 +264,7 @@ def updateItem(connection: sqlite3.Connection, itemId: str, changes: dict) -> di
                 itemId,
             ),
         )
-        return _itemView(connection, _fetchItemRow(connection, itemId))
+        return _singleItemView(connection, itemId)
 
 
 def deleteItem(connection: sqlite3.Connection, itemId: str) -> dict:
@@ -239,14 +276,19 @@ def deleteItem(connection: sqlite3.Connection, itemId: str) -> dict:
     return {"deleted": itemId}
 
 
-def getItem(connection: sqlite3.Connection, itemId: str) -> dict:
-    return _itemView(connection, _fetchItemRow(connection, itemId))
+def getItem(connection: sqlite3.Connection, itemId: str, now: datetime | None = None) -> dict:
+    return _singleItemView(connection, itemId, now)
 
 
-def listItems(connection: sqlite3.Connection, locationId: str | None = None) -> list[dict]:
+def listItems(
+    connection: sqlite3.Connection,
+    locationId: str | None = None,
+    now: datetime | None = None,
+) -> list[dict]:
     if locationId is not None and (not isinstance(locationId, str) or locationId not in catalogIds("locations")):
         raise LookupError("Location not found")
     stockByItem = calculateStock(connection, locationId=locationId)
+    expiredLots = _expiredLotsByItem(connection, now or utcNow(), locationId=locationId)
     rows = connection.execute(
         """
         SELECT * FROM inventoryItems
@@ -255,7 +297,7 @@ def listItems(connection: sqlite3.Connection, locationId: str | None = None) -> 
         """,
         {"locationId": locationId},
     ).fetchall()
-    return [_itemView(connection, row, stockByItem[row["id"]]) for row in rows]
+    return [_itemView(row, stockByItem[row["id"]], expiredLots.get(row["id"], [])) for row in rows]
 
 
 def isLotExpired(expiryDate: str, now: datetime) -> bool:
@@ -391,3 +433,55 @@ def registerMovement(
             "createdAt": createdAt,
             "stock": formatQuantity(stockMilli, unitOfMeasure),
         }
+
+
+def getStockReport(connection: sqlite3.Connection, itemId: str, now: datetime | None = None) -> dict:
+    moment = now or utcNow()
+    row = _fetchItemRow(connection, itemId)
+    unitOfMeasure = row["unitOfMeasure"]
+    stockMilli = calculateStock(connection, itemId=itemId)[itemId]
+
+    totals = {
+        (record["movementType"], record["reason"]): record["total"]
+        for record in connection.execute(
+            """
+            SELECT movementType, CASE movementType WHEN 'adjustment' THEN reason ELSE '' END AS reason,
+                   SUM(quantityMilli) AS total
+            FROM stockMovements WHERE itemId = ? GROUP BY movementType, 2
+            """,
+            (itemId,),
+        )
+    }
+    lotStock = calculateStock(connection, itemId=itemId, groupByLot=True)
+    lots = []
+    for lot in connection.execute(
+        "SELECT lotCode, expiryDate FROM inventoryLots WHERE itemId = ? ORDER BY expiryDate, lotCode", (itemId,)
+    ):
+        lotStockMilli = lotStock.get((itemId, lot["lotCode"]), 0)
+        expired = isLotExpired(lot["expiryDate"], moment)
+        lots.append(
+            {
+                "lotCode": lot["lotCode"],
+                "expiryDate": lot["expiryDate"],
+                "expired": expired,
+                "stock": formatQuantity(lotStockMilli, unitOfMeasure),
+                "expiredStock": formatQuantity(lotStockMilli if expired else 0, unitOfMeasure),
+            }
+        )
+    return {
+        "itemId": itemId,
+        "unitOfMeasure": unitOfMeasure,
+        "stock": formatQuantity(stockMilli, unitOfMeasure),
+        "reorderPoint": formatQuantity(row["reorderPointMilli"], unitOfMeasure),
+        "needsReorder": stockMilli <= row["reorderPointMilli"],
+        "totalInbound": formatQuantity(totals.get(("inbound", ""), 0), unitOfMeasure),
+        "totalOutbound": formatQuantity(totals.get(("outbound", ""), 0), unitOfMeasure),
+        "adjustments": [
+            {
+                "reason": reason,
+                "total": formatQuantity(totals.get(("adjustment", reason), 0), unitOfMeasure),
+            }
+            for reason in catalogIds("adjustmentReasons")
+        ],
+        "lots": lots,
+    }

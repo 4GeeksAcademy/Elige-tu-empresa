@@ -997,3 +997,25 @@
 - **Desviaciones evitadas:** 05 → solo T-19; sin informe ni reorden.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): aplicar las reglas de lotes caducados`
+
+## Paso 06 (inventario) — T-20 Informe de stock
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-20 · **Criterios:** INV-009, INV-043, INV-045, INV-046, INV-047, INV-053
+- **Qué se hizo:**
+  - Escritos primero ocho tests en `StockReportTests`; fallaban por falta de `getStockReport` (error de importación).
+  - Añadido `getStockReport(connection, itemId, now=None)`: stock disponible (de `calculateStock`), marca de reorden, total de `inbound`, total de `outbound`, total de ajustes de `waste`, `theft` y `count_correction` por separado (siempre las tres, con su signo), y la lista de lotes ordenada por caducidad con `expiryDate`, `expired`, `stock` y `expiredStock`. Los totales por tipo son una agregación aparte; no calculan el stock (plan §3).
+  - Opción A acordada en la parada anterior: `expiredLots` (lotes caducados con stock, con `lotCode`, `expiryDate` y `stock`) se añade a la vista del artículo de `createItem`, `updateItem`, `getItem` y `listItems`, con un test extra bajo INV-053. `listItems` lo calcula con una sola consulta para todo el listado. `getItem` y `listItems` aceptan `now` opcional. El test de INV-010 que fijaba las claves de la vista se actualizó para incluir `expiredLots`.
+  - Refactor interno: `_itemView` es ahora una función pura (fila, stock y lotes caducados) y `_singleItemView` reúne los cálculos de un artículo.
+  - Suite completa: 139 pruebas pasan; los tests de concurrencia se repitieron 10 veces sin fallos.
+- **Archivos:**
+  - `services/api/inventory.py` — informe, `expiredLots` y refactor de la vista
+  - `services/api/tests/test_inventory.py` — tests de T-20 y clave nueva en el test de INV-010
+  - `specs/inventory-manager/tasks.md` — T-20 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el informe lista todos los lotes del artículo, también los de stock 0. El `adjustments[].total` lleva signo (negativo en `waste` y `theft`).
+- **Desviaciones evitadas:** 05 → sin señal de reorden ni rutas.
+- **Cambios respecto al plan:** ninguno; el plan §5 ya incluía `expiredLots` en la vista.
+- **Commit:** `feat(inventory): generar el informe de stock de un artículo`

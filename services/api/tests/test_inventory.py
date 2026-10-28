@@ -14,6 +14,7 @@ from services.api.inventory import (
     deleteItem,
     formatQuantity,
     getItem,
+    getStockReport,
     isLotExpired,
     listItems,
     parseQuantity,
@@ -716,7 +717,18 @@ class ListItemsTests(InventorySchemaTestCase):
         )
         self.assertEqual(
             set(byName["Cilantro"]),
-            {"id", "name", "locationId", "category", "unitOfMeasure", "reorderPoint", "stock", "needsReorder", "createdAt"},
+            {
+                "id",
+                "name",
+                "locationId",
+                "category",
+                "unitOfMeasure",
+                "reorderPoint",
+                "stock",
+                "needsReorder",
+                "expiredLots",
+                "createdAt",
+            },
         )
         self.assertEqual(getItem(self.connection, cilantro["id"]), byName["Cilantro"])
 
@@ -1328,6 +1340,122 @@ class ExpiredLotTests(LotTestCase):
         registerMovement(
             self.connection, self.meatId, self.lotInbound(lotCode="oldLot", quantity="1", expiryDate=None), now=self.fixedNow
         )
+
+
+class StockReportTests(LotTestCase):
+    def movement(self, itemId: str, movementType: str, quantity: str, reason: str, **extra: object) -> dict:
+        fields = {"movementType": movementType, "quantity": quantity, "reason": reason, **extra}
+        return registerMovement(self.connection, itemId, fields, now=self.fixedNow)
+
+    def adjustmentsByReason(self, report: dict) -> dict:
+        return {entry["reason"]: entry["total"] for entry in report["adjustments"]}
+
+    def testInv045ReportReturnsStockAndInboundOutboundTotals(self) -> None:
+        self.movement(self.itemId, "inbound", "10", "delivery")
+        self.movement(self.itemId, "inbound", "5", "delivery")
+        self.movement(self.itemId, "outbound", "3", "sale")
+        self.movement(self.itemId, "outbound", "1.25", "sale")
+        self.movement(self.itemId, "adjustment", "-2", "waste")
+        report = getStockReport(self.connection, self.itemId, now=self.fixedNow)
+        self.assertEqual(
+            {key: report[key] for key in ("itemId", "unitOfMeasure", "stock", "totalInbound", "totalOutbound", "reorderPoint")},
+            {
+                "itemId": self.itemId,
+                "unitOfMeasure": "l",
+                "stock": "8.750",
+                "totalInbound": "15.000",
+                "totalOutbound": "4.250",
+                "reorderPoint": "10.000",
+            },
+        )
+        empty = createItem(
+            self.connection,
+            {"name": "Vacío", "locationId": "queChille", "category": "beverages", "unitOfMeasure": "unit", "reorderPoint": "3"},
+        )
+        emptyReport = getStockReport(self.connection, empty["id"], now=self.fixedNow)
+        self.assertEqual(
+            (emptyReport["stock"], emptyReport["totalInbound"], emptyReport["totalOutbound"], emptyReport["lots"]),
+            ("0", "0", "0", []),
+        )
+
+    def testInv046ReportReturnsWasteTheftCountCorrectionSeparately(self) -> None:
+        self.movement(self.itemId, "inbound", "20", "delivery")
+        self.movement(self.itemId, "adjustment", "-2", "waste")
+        self.movement(self.itemId, "adjustment", "-1", "waste")
+        self.movement(self.itemId, "adjustment", "-1.5", "theft")
+        self.movement(self.itemId, "adjustment", "0.5", "count_correction")
+        report = getStockReport(self.connection, self.itemId, now=self.fixedNow)
+        self.assertEqual(
+            report["adjustments"],
+            [
+                {"reason": "waste", "total": "-3.000"},
+                {"reason": "theft", "total": "-1.500"},
+                {"reason": "count_correction", "total": "0.500"},
+            ],
+        )
+        self.assertEqual(report["stock"], "16.000")
+
+    def testInv046ReportAlwaysListsThreeReasons(self) -> None:
+        report = getStockReport(self.connection, self.itemId, now=self.fixedNow)
+        self.assertEqual(
+            report["adjustments"],
+            [
+                {"reason": "waste", "total": "0.000"},
+                {"reason": "theft", "total": "0.000"},
+                {"reason": "count_correction", "total": "0.000"},
+            ],
+        )
+
+    def testInv047ReportReturnsStockPerLotWithExpiryDate(self) -> None:
+        meatId = self.createMeatItem()
+        self.movement(meatId, "inbound", "4", "delivery", lotCode="lotB", expiryDate="2026-12-15")
+        self.movement(meatId, "inbound", "6", "delivery", lotCode="lotA", expiryDate="2026-11-20")
+        self.movement(meatId, "outbound", "1", "sale", lotCode="lotA")
+        report = getStockReport(self.connection, meatId, now=self.fixedNow)
+        self.assertEqual(
+            [(lot["lotCode"], lot["expiryDate"], lot["stock"]) for lot in report["lots"]],
+            [("lotA", "2026-11-20", "5.000"), ("lotB", "2026-12-15", "4.000")],
+        )
+        self.assertEqual(report["stock"], "9.000")
+
+    def testInv053ReportReturnsExpiredStockPerLot(self) -> None:
+        meatId = self.createMeatItem()
+        self.movement(meatId, "inbound", "5", "delivery", lotCode="oldLot", expiryDate="2026-10-01")
+        self.movement(meatId, "inbound", "3", "delivery", lotCode="freshLot", expiryDate="2026-11-30")
+        report = getStockReport(self.connection, meatId, now=self.fixedNow)
+        self.assertEqual(
+            [(lot["lotCode"], lot["expired"], lot["stock"], lot["expiredStock"]) for lot in report["lots"]],
+            [("oldLot", True, "5.000", "5.000"), ("freshLot", False, "3.000", "0.000")],
+        )
+        self.movement(meatId, "adjustment", "-2", "waste", lotCode="oldLot")
+        later = getStockReport(self.connection, meatId, now=self.fixedNow)
+        self.assertEqual(later["lots"][0]["expiredStock"], "3.000")
+        self.assertEqual(later["stock"], "6.000")
+
+    def testInv053ItemViewListsExpiredLotsWithStock(self) -> None:
+        meatId = self.createMeatItem()
+        self.movement(meatId, "inbound", "5", "delivery", lotCode="oldLot", expiryDate="2026-10-01")
+        self.movement(meatId, "inbound", "3", "delivery", lotCode="freshLot", expiryDate="2026-11-30")
+        expected = [{"lotCode": "oldLot", "expiryDate": "2026-10-01", "stock": "5.000"}]
+        self.assertEqual(getItem(self.connection, meatId, now=self.fixedNow)["expiredLots"], expected)
+        listed = {item["id"]: item for item in listItems(self.connection, now=self.fixedNow)}
+        self.assertEqual(listed[meatId]["expiredLots"], expected)
+        self.assertEqual(listed[self.itemId]["expiredLots"], [])
+        self.movement(meatId, "adjustment", "-5", "waste", lotCode="oldLot")
+        self.assertEqual(getItem(self.connection, meatId, now=self.fixedNow)["expiredLots"], [])
+
+    def testInv043ReportMarksReorder(self) -> None:
+        self.movement(self.itemId, "inbound", "10.001", "delivery")
+        self.assertIs(getStockReport(self.connection, self.itemId)["needsReorder"], False)
+        self.movement(self.itemId, "adjustment", "-0.001", "waste")
+        self.assertIs(getStockReport(self.connection, self.itemId)["needsReorder"], True)
+        self.movement(self.itemId, "outbound", "5", "sale")
+        self.assertIs(getStockReport(self.connection, self.itemId)["needsReorder"], True)
+
+    def testInv009RejectsReportOfUnknownItem(self) -> None:
+        for itemId in (generateId(), "not-a-uuid"):
+            with self.assertRaises(LookupError):
+                getStockReport(self.connection, itemId)
 
 
 class ConcurrentMovementTests(unittest.TestCase):
