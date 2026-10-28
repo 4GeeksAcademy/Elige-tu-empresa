@@ -24,7 +24,7 @@ Si un archivo aún no existe, sáltalo: la columna "Se crea en" indica cuándo a
 | `estado-actual.md` | Hecho, en curso, siguiente, estado del proyecto, decisiones cerradas y pendientes | Núcleo | Paso 01 | En cada commit |
 | `historial-commits.md` | Bitácora: una entrada por commit, con el formato de `.agents/rules/00-commits-y-bitacora.md` | Bajo demanda | Paso 01 | En cada commit |
 | `contexto-producto.md` | La empresa, usuarios propuestos, incidencias, catálogos y glosario; borrador con valores pendientes de validación | Núcleo | Paso 09 | Si cambian los catálogos validados |
-| `stack-tecnologico.md` | Piezas del monorepo, gestor de dependencias, comandos clave y persistencia | Núcleo | Paso 10 | Si cambia el stack |
+| `stack-tecnologico.md` | Piezas del monorepo, gestor de dependencias, comandos clave y persistencia de incidencias e inventario | Núcleo | Paso 10 | Si cambia el stack |
 | `plan-implementacion.md` | Plan del gestor de incidencias, versionado (histórico, bajo demanda) | Evidencia | Paso 11 | Nunca |
 | `registro/encargo-incidencias.md` | Encargo anterior, el gestor de incidencias, ya mergeado en `main` (histórico, bajo demanda) | Evidencia | Inventario, Paso 01 | Nunca |
 | `registro/resumen-inicial-agente.md` | Resumen inicial del agente, hecho sin contexto (hipótesis; no se edita) | Evidencia | Paso 02 | Nunca |
@@ -38,7 +38,7 @@ Si un archivo aún no existe, sáltalo: la columna "Se crea en" indica cuándo a
 | `registro/trazabilidad-inventario.md` | Tabla INV → tarea → test → commit del gestor de inventario | Evidencia | Inventario, Paso 07 | Al cerrar un cambio de requisito |
 | `registro/verificacion-inventario.md` | Recorrido real con los datos semilla y sus resultados | Evidencia | Inventario, Paso 07 | — |
 | `registro/cambio-requisito-inventario.md` | Texto literal del cambio de requisito, análisis de impacto y cierre | Evidencia | Inventario, Paso 08 | Durante el cambio |
-| `registro/descripcion-pr-inventario.md` | Descripción del Pull Request del inventario (prevista) | Evidencia | Inventario, Paso 09 | — |
+| `registro/descripcion-pr-inventario.md` | Descripción del Pull Request del inventario: alcance, spec, trazabilidad, verificación y reglas | Evidencia | Inventario, Paso 09 | — |
 
 ## Spec, plan y tareas del inventario
 

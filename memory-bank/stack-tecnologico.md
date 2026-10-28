@@ -1,6 +1,6 @@
 # Stack tecnológico y estructura del repositorio
 
-> La primera sección conserva el estado de la plantilla observado en el Paso 10. La sección final registra el estado del servicio al cierre del Paso 18.
+> La primera sección conserva el estado de la plantilla observado en el Paso 10. Las secciones de gestores registran la arquitectura al cierre de los encargos de incidencias e inventario.
 
 ## Piezas del monorepo
 
@@ -29,7 +29,7 @@ La guía de estructura y las reglas aplicables a componentes y recursos comparti
 
 La presencia del script de preparación no implica que exista un stack de aplicación. El devcontainer reserva puertos y monta el socket de Docker, pero no hay una configuración `docker-compose.yml` en la raíz.
 
-## Estado del gestor tras el Paso 19b
+## Gestor de incidencias al cierre del Paso 19b
 
 - **Servicio:** `services/api/` contiene la API JSON HTTP con `http.server` de la biblioteca estándar y casos de uso Python para registrar y consultar incidencias, cambiar estado y área, listar con filtros y resumir incidencias abiertas por severidad.
 - **Persistencia:** SQLite mediante `sqlite3` de la biblioteca estándar. El esquema y las restricciones se inicializan desde `database.py`; las pruebas usan bases temporales o en memoria.
@@ -37,6 +37,16 @@ La presencia del script de preparación no implica que exista un stack de aplica
 - **Dependencias de aplicación:** no se añadieron dependencias. La API y la UI usan herramientas estándar; `uv.lock` permanece excluido y no se leyó ni modificó.
 - **Interfaz:** `uis/backoffice/` contiene HTML, CSS y JavaScript sin framework. `python -m services.api.server` sirve la API y los estáticos desde el mismo origen; el servidor crea `data/incidents.sqlite` y escucha en `127.0.0.1:8000` por defecto.
 - **Pendiente:** auditoría de criterios C01–C15 y descripción del PR en el Paso 19c. Node.js no está disponible en el entorno, por lo que `node --check` no se pudo ejecutar.
+
+## Gestor de inventario al cierre del Paso 09
+
+- **Módulo:** `services/api/inventory.py` implementa artículos, movimientos, lotes, cálculo de stock, informe y señal de reorden. `services/api/inventoryseed.py` contiene los datos semilla y su comando; `server.py` expone la API bajo `/api/inventory/`. El backoffice estático está en `uis/backoffice/inventory.html` e `inventory.js`.
+- **Persistencia:** las tablas de inventario comparten SQLite con incidencias en `data/incidents.sqlite`. El stock no se almacena directamente: se deriva de movimientos. La semilla rechaza una base que ya contenga artículos.
+- **Semilla:** desde la raíz, `PYTHONDONTWRITEBYTECODE=1 python -m services.api.inventoryseed`; acepta `--database <ruta>` para elegir el archivo. Carga 16 artículos y sus movimientos.
+- **Pruebas:** desde la raíz, `PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s services/api/tests -v`; al cierre del Paso 07 pasaron 188 pruebas.
+- **Servidor:** `PYTHONDONTWRITEBYTECODE=1 python -m services.api.server`; sirve la API y el backoffice desde el mismo origen en `http://127.0.0.1:8000/` y usa `data/incidents.sqlite`. Para un servidor de prueba con una DB distinta, llamar `createServer(databasePath)` desde `services.api.server`; el comando del módulo no ofrece opción CLI de base de datos.
+- **Dependencias:** la implementación usa Python y SQLite de biblioteca estándar; `pyproject.toml` no cambia respecto de la base aceptada `6260bb2`.
+- **Verificación manual:** recorrido HTTP con DB temporal registrado en [`registro/verificacion-inventario.md`](./registro/verificacion-inventario.md). No se hizo inspección visual en navegador.
 
 ## Reglas del agente
 

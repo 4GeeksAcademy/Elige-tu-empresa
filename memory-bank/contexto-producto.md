@@ -123,6 +123,10 @@ Los identificadores de tipos, severidades y estados usan `camelCase` ASCII; las 
 
 Los identificadores del glosario usan `camelCase` ASCII según la convención validada por el usuario.
 
+## Gestor de inventario
+
+El inventario es un producto separado del gestor de incidencias y cubre artículos, movimientos de entrada/salida/ajuste, lotes, existencias derivadas, reorden e informes para los cuatro locales acordados. Su alcance, catálogos y reglas aprobadas están especificados en [`specs/inventory-manager/spec.md`](../specs/inventory-manager/spec.md); esta memoria no duplica esos requisitos. La implementación comparte SQLite con el servicio existente y el detalle técnico está en [`stack-tecnologico.md`](./stack-tecnologico.md).
+
 ## Fuera de alcance
 
 - Construir los demás productos solicitados en el briefing: CRM, fidelización, pedidos, RRHH, formación, compras y dashboards de ventas.

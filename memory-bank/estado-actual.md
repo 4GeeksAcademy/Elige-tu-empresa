@@ -60,13 +60,14 @@
 - Paso 06, T-27: página `inventory.html` con alta, edición, baja y listado por local; 181 pruebas pasan; commit `066c3ea`.
 - Paso 06, T-28: formulario de movimientos con entrada, salida y ajuste, campos contextuales de motivo/lote/caducidad y rechazo del servidor visible; 185 pruebas pasan; commit `e295b29`.
 - Paso 06, T-29: informe por artículo, señal de reorden por local, detalle de lotes caducados y guías bilingües; 188 pruebas pasan; commit `feat(inventory): mostrar informes de stock en el backoffice`.
-- Paso 07: suite completa (188 pruebas OK), recorrido HTTP con semilla y trazabilidad INV-001–INV-066 documentados en `registro/verificacion-inventario.md` y `registro/trazabilidad-inventario.md`; commit `docs(memory-bank): verificar y trazar el gestor de inventario`.
+- Paso 07: suite completa (188 pruebas OK), recorrido HTTP con semilla y trazabilidad INV-001–INV-066 documentados en `registro/verificacion-inventario.md` y `registro/trazabilidad-inventario.md`; commit `2b6a7f5`.
+- Paso 09: memoria de cierre y descripción del PR preparadas; validado historial de 35 commits desde `6260bb2`, 29 commits de implementación con `T-*` e `INV-*`, y sin cambios de dependencias. Auditoría detectó que el commit `2b6a7f5` carece del cuerpo `Paso:`/`Checklist:` exigido por la regla 00; se mantiene sin reescribir y se señala para revisión.
 
 ## En curso
-- Paso 09 del inventario: cierre de memoria, revisión de historial y descripción del PR.
+- Paso 09 del inventario: revisión del cierre y autorización para commit/publicación.
 
 ## Siguiente
-- Tras completar el Paso 09 y recibir autorización, publicar la rama y abrir el PR; no hacer merge.
+- Con autorización del usuario: commit del Paso 09, push de `feature/inventory-manager` y apertura del PR contra `main`; no hacer merge.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
@@ -86,7 +87,7 @@
 | 2026-10-27 | 19b | API y backoffice se implementan y prueban con biblioteca estándar; sin autenticación, el autor se introduce manualmente y el servidor escucha en loopback por defecto |
 | 2026-10-28 | 01 (inventario) | `company-BRIEFING.md` no existe: el usuario decide usar `CONTEXT.md` como briefing y reconciliar los huecos |
 | 2026-10-28 | 03 (inventario) | Spec v1.0 aprobado: P-01 sin campos extra; P-02–P-07 según la propuesta del agente; P-08, solo los 4 locales del encargo |
-| 2026-10-28 | 01 (inventario) | No existe la rama `main` (ni local ni remota): el usuario da por válido `6260bb2` (merge del PR #1) como base |
+| 2026-10-28 | 01 (inventario) | El usuario da por válida `6260bb2` (merge del PR #1) como base. En la auditoría del Paso 09 se comprobó que `origin/main` y `origin/feature/inventory-manager` existen y apuntan a esa base; no hay `main` local |
 
 ## Pendientes
 - `CONTEXT.md` (Brasaland, 14 locales) no contiene el dominio del inventario: ni las entidades, ni el §3.1, §4 y §7 que cita el encargo, ni los cuatro locales (`laArepita`, `queChille`, `theBigSauce`, `chilliBeans`). Se resuelve en el Paso 03: lo que no esté en `CONTEXT.md` ni en el §4 del encargo se marca `pendiente` en el spec.

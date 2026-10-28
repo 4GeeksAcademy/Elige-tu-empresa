@@ -1246,3 +1246,26 @@
 - **Desviaciones evitadas:** 00 → solo archivos del paso, sin mezclar el cierre del Paso 09; 05 → no se cambió spec, plan ni código.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `docs(memory-bank): verificar y trazar el gestor de inventario`
+
+## Paso 09 (inventario) — Cierre de memoria y preparación del PR
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** Paso 09 · **Criterios:** INV-001–INV-066
+- **Qué se hizo:**
+  - Sincronizado el estado final, el stack tecnológico, el contexto de producto y el índice del banco de memoria con el gestor entregado.
+  - Redactada la descripción del PR con las seis secciones requeridas: resumen; versiones de spec, plan y tareas; trazabilidad; cambio de requisito; verificación; reglas aplicadas.
+  - Verificados los 35 commits desde la base aceptada `6260bb2`, incluidos los 29 commits de implementación; todos los de implementación contienen `T-*` e `INV-*`. `origin/main` y `origin/feature/inventory-manager` existen y apuntan a `6260bb2`; no hay rama `main` local.
+  - `git diff 6260bb2..HEAD -- pyproject.toml` no presenta cambios. No se ejecutó un nuevo test de aplicación: este paso es documental y la suite completa (188 OK) consta en el Paso 07.
+  - Detectada una excepción de historial: el commit `2b6a7f5` del Paso 07 carece del cuerpo `Paso:`/`Checklist:` exigido por la regla 00. Se documenta para revisión; no se reescribe.
+- **Archivos:**
+  - `memory-bank/estado-actual.md` — estado final y auditoría.
+  - `memory-bank/stack-tecnologico.md` — módulos, persistencia, comandos y verificación.
+  - `memory-bank/contexto-producto.md` — resumen de inventario con enlace al spec.
+  - `memory-bank/README.md` — índice actualizado.
+  - `memory-bank/registro/descripcion-pr-inventario.md` — cuerpo propuesto del PR.
+  - `memory-bank/historial-commits.md` — bitácora del paso.
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 02-guias-bilingues, 03-paquetes-y-recursos-compartidos, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** no se recibió cambio de requisito, por lo que el spec sigue en v1.0 y no se regeneraron tareas. El commit y la publicación esperan autorización del usuario; `gh` no está instalado en el entorno. No se hará merge.
+- **Desviaciones evitadas:** no se modificaron requisitos ni código; no se publicará ni hará merge sin autorización; se conserva la historia publicada sin reescribir `2b6a7f5`.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(memory-bank): cerrar memoria y preparar PR del inventario`
