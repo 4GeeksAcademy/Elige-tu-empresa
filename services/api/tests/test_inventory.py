@@ -1,6 +1,9 @@
 import sqlite3
+import tempfile
+import threading
 import unittest
 from datetime import datetime, timezone
+from pathlib import Path
 
 from services.api.catalogs import catalogIds, catalogs, inventoryCatalogs
 from services.api.database import createConnection, initializeDatabase, stockDeltaSql
@@ -1011,6 +1014,104 @@ class RegisterAdjustmentTests(MovementTestCase):
             registerMovement(self.connection, self.itemId, self.adjustment(quantity="-0.001", reason="count_correction"))
         self.assertEqual(self.movementCount(), 2)
         self.assertFalse(self.connection.in_transaction)
+
+
+class ConcurrentMovementTests(unittest.TestCase):
+    initialStock = "5"
+
+    def setUp(self) -> None:
+        temporaryDirectory = tempfile.TemporaryDirectory()
+        self.addCleanup(temporaryDirectory.cleanup)
+        self.databasePath = Path(temporaryDirectory.name) / "inventory.sqlite"
+        connection = createConnection(self.databasePath)
+        self.addCleanup(connection.close)
+        initializeDatabase(connection)
+        item = createItem(
+            connection,
+            {
+                "name": "Jugo de lulo",
+                "locationId": "queChille",
+                "category": "beverages",
+                "unitOfMeasure": "l",
+                "reorderPoint": "1",
+            },
+        )
+        self.itemId = item["id"]
+        registerMovement(
+            connection,
+            self.itemId,
+            {"movementType": "inbound", "quantity": self.initialStock, "reason": "opening stock"},
+        )
+        self.connection = connection
+
+    def runConcurrently(self, requests: list[dict]) -> list:
+        barrier = threading.Barrier(len(requests))
+        outcomes: list = [None] * len(requests)
+
+        def worker(index: int, fields: dict) -> None:
+            workerConnection = createConnection(self.databasePath)
+            try:
+                barrier.wait()
+                outcomes[index] = registerMovement(workerConnection, self.itemId, fields)
+            except Exception as error:
+                outcomes[index] = error
+            finally:
+                workerConnection.close()
+
+        threads = [threading.Thread(target=worker, args=(index, fields)) for index, fields in enumerate(requests)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=30)
+        self.assertFalse(any(thread.is_alive() for thread in threads))
+        return outcomes
+
+    def stockMilli(self) -> int:
+        return calculateStock(self.connection, itemId=self.itemId)[self.itemId]
+
+    def testInv025ConcurrentOutboundsNeverLeaveNegativeStock(self) -> None:
+        requests = [{"movementType": "outbound", "quantity": "1", "reason": "sale"} for _ in range(8)]
+        outcomes = self.runConcurrently(requests)
+        registered = [outcome for outcome in outcomes if isinstance(outcome, dict)]
+        rejected = [outcome for outcome in outcomes if not isinstance(outcome, dict)]
+        self.assertEqual(len(registered), 5)
+        self.assertTrue(all(isinstance(outcome, BusinessRuleError) for outcome in rejected), rejected)
+        self.assertEqual(len(rejected), 3)
+        self.assertEqual(self.stockMilli(), 0)
+
+    def testInv025OnlyMovementsThatFitAreRegistered(self) -> None:
+        requests = [
+            {"movementType": "outbound", "quantity": "2", "reason": "sale"},
+            {"movementType": "outbound", "quantity": "3", "reason": "sale"},
+            {"movementType": "adjustment", "quantity": "-2.5", "reason": "waste"},
+            {"movementType": "adjustment", "quantity": "-1.5", "reason": "theft"},
+            {"movementType": "outbound", "quantity": "4", "reason": "sale"},
+            {"movementType": "adjustment", "quantity": "-3", "reason": "count_correction"},
+            {"movementType": "inbound", "quantity": "0.5", "reason": "delivery"},
+            {"movementType": "outbound", "quantity": "1", "reason": "sale"},
+        ]
+        outcomes = self.runConcurrently(requests)
+        for outcome in outcomes:
+            self.assertTrue(isinstance(outcome, (dict, BusinessRuleError)), outcome)
+        registered = [outcome["movementType"] for outcome in outcomes if isinstance(outcome, dict)]
+        self.assertIn("inbound", registered)
+        rows = self.connection.execute(
+            "SELECT movementType, quantityMilli FROM stockMovements WHERE reason <> 'opening stock'"
+        ).fetchall()
+        self.assertEqual(len(rows), len(registered))
+        finalStock = self.stockMilli()
+        self.assertGreaterEqual(finalStock, 0)
+        self.assertEqual(
+            finalStock,
+            5000 + sum(row["quantityMilli"] if row["movementType"] != "outbound" else -row["quantityMilli"] for row in rows),
+        )
+        rejectedQuantities = [
+            abs(parseQuantity(request["quantity"], "l"))
+            for request, outcome in zip(requests, outcomes)
+            if isinstance(outcome, BusinessRuleError)
+        ]
+        self.assertTrue(rejectedQuantities)
+        self.assertLess(finalStock, min(rejectedQuantities))
 
 
 if __name__ == "__main__":

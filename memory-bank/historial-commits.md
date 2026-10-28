@@ -891,3 +891,23 @@
 - **Desviaciones evitadas:** 05 → solo T-14; sin lotes ni caducados.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): registrar ajustes con motivo`
+
+## Paso 06 (inventario) — T-15 Concurrencia
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-15 · **Criterios:** INV-025
+- **Qué se hizo:**
+  - Escritos dos tests en `ConcurrentMovementTests` (`test_inventory.py`): ocho salidas simultáneas de 1 sobre un stock de 5, y ocho movimientos mezclados (salidas, ajustes y una entrada) lanzados a la vez con una `Barrier`. Cada hilo usa su propia conexión sobre un archivo SQLite temporal.
+  - Comprobado: se registran exactamente las 5 salidas que caben y las otras 3 fallan con `BusinessRuleError`; en el caso mezclado, el stock final es mayor o igual que cero, coincide con la suma de lo registrado y es menor que cualquier cantidad rechazada.
+  - No hubo código de producción nuevo: `BEGIN IMMEDIATE` de T-08 y la comprobación de T-13 y T-14 ya cumplían el criterio, así que los tests pasaron al escribirse. Para demostrar que detectan el fallo, cambié temporalmente `BEGIN IMMEDIATE` por `BEGIN` y fallaron en 3 de 3 ejecuciones; restauré el código y `git diff` sobre `inventory.py` queda vacío.
+  - Tres ejecuciones seguidas de los tests con el código real: verdes. Suite completa: 110 pruebas pasan.
+- **Archivos:**
+  - `services/api/tests/test_inventory.py` — tests de T-15
+  - `specs/inventory-manager/tasks.md` — T-15 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el asunto del commit usa `test(inventory)` porque no hay cambio de código de producción.
+- **Desviaciones evitadas:** 05 → solo T-15.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `test(inventory): probar movimientos concurrentes sobre un archivo`
