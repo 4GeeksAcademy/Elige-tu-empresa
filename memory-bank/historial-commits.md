@@ -631,3 +631,24 @@
 - **Desviaciones evitadas:** 05 → solo T-02; no se añadió ningún tope no pedido.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): convertir cantidades decimales a milésimas`
+
+## Paso 06 (inventario) — T-03 Esquema de artículos y lotes
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-03 · **Criterios:** INV-002, INV-003, INV-030, INV-031, INV-037
+- **Qué se hizo:**
+  - Escritos primero cinco tests «Sql» en `test_inventory.py`, sobre una base en memoria; fallaban porque las tablas no existían.
+  - Añadidas a `initializeDatabase` las tablas `inventoryItems` (UUID v4, `CHECK` de catálogos con `_catalogCheck`, `name` no vacío, `reorderPointMilli >= 0`) e `inventoryLots` (`lotCode` clave primaria global, `expiryDate` con forma `AAAA-MM-DD`, `UNIQUE (itemId, lotCode)` para la clave compuesta de T-04) y los triggers que impiden modificar o borrar un lote (PD-03, PD-04, PD-07).
+  - Ninguna de las dos tablas tiene columna de stock.
+  - Suite completa: 49 pruebas pasan.
+- **Archivos:**
+  - `services/api/database.py` — dos tablas y dos triggers
+  - `services/api/tests/test_inventory.py` — tests de T-03 y base común `InventorySchemaTestCase`
+  - `specs/inventory-manager/tasks.md` — T-03 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** las restricciones de lote que no son de esta tarea (unicidad global de `lotCode`, forma de `expiryDate`, clave foránea al artículo) están implementadas pero se prueban en T-04 y T-17; no se añadieron tests fuera de la lista de T-03.
+- **Desviaciones evitadas:** 05 → quité dos tests míos que correspondían a INV-028 e INV-033 y quedan para T-17 y T-04.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): crear tablas de artículos y lotes`

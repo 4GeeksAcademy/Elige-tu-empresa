@@ -1,7 +1,10 @@
+import sqlite3
 import unittest
 
 from services.api.catalogs import catalogIds, catalogs, inventoryCatalogs
+from services.api.database import createConnection, initializeDatabase
 from services.api.inventory import formatQuantity, parseQuantity
+from services.api.models import formatUtcTimestamp, generateId, utcNow
 
 
 class InventoryCatalogTests(unittest.TestCase):
@@ -102,6 +105,92 @@ class QuantityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "decimal"):
             parseQuantity("2.0005", "kg")
         self.assertEqual(parseQuantity("0", "unit"), 0)
+
+
+class InventorySchemaTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        self.connection = createConnection(":memory:")
+        initializeDatabase(self.connection)
+        self.addCleanup(self.connection.close)
+
+    def insertItem(self, **overrides: object) -> str:
+        values = {
+            "id": generateId(),
+            "name": "Cilantro",
+            "locationId": "queChille",
+            "category": "produce",
+            "unitOfMeasure": "kg",
+            "reorderPointMilli": 2000,
+            "createdAt": formatUtcTimestamp(utcNow()),
+        }
+        values.update(overrides)
+        self.connection.execute(
+            """
+            INSERT INTO inventoryItems (
+                id, name, locationId, category, unitOfMeasure, reorderPointMilli, createdAt
+            ) VALUES (:id, :name, :locationId, :category, :unitOfMeasure, :reorderPointMilli, :createdAt)
+            """,
+            values,
+        )
+        return values["id"]
+
+    def insertLot(self, itemId: str, **overrides: object) -> str:
+        values = {
+            "lotCode": "lotA",
+            "itemId": itemId,
+            "expiryDate": "2026-12-01",
+            "receivedAt": formatUtcTimestamp(utcNow()),
+        }
+        values.update(overrides)
+        self.connection.execute(
+            """
+            INSERT INTO inventoryLots (lotCode, itemId, expiryDate, receivedAt)
+            VALUES (:lotCode, :itemId, :expiryDate, :receivedAt)
+            """,
+            values,
+        )
+        return values["lotCode"]
+
+
+class InventoryItemSchemaTests(InventorySchemaTestCase):
+    def testInv037SchemaHasNoStockColumn(self) -> None:
+        for tableName in ("inventoryItems", "inventoryLots"):
+            columns = {row["name"].lower() for row in self.connection.execute(f"PRAGMA table_info({tableName})")}
+            with self.subTest(tableName=tableName):
+                self.assertTrue(columns)
+                self.assertFalse(any("stock" in name or "quantity" in name for name in columns))
+
+    def testInv002SqlRejectsValuesOutsideCatalogs(self) -> None:
+        self.insertItem()
+        for overrides in (
+            {"locationId": "unknown"},
+            {"category": "unknown"},
+            {"unitOfMeasure": "lb"},
+            {"name": "   "},
+            {"id": "not-a-uuid"},
+        ):
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.insertItem(**overrides)
+
+    def testInv003SqlRejectsNegativeReorderPoint(self) -> None:
+        self.insertItem(reorderPointMilli=0)
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insertItem(reorderPointMilli=-1)
+
+
+class InventoryLotSchemaTests(InventorySchemaTestCase):
+    def testInv031SqlRejectsLotExpiryDateUpdate(self) -> None:
+        itemId = self.insertItem()
+        self.insertLot(itemId)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
+            self.connection.execute("UPDATE inventoryLots SET expiryDate = '2027-01-01'")
+
+    def testInv030SqlRejectsLotDelete(self) -> None:
+        itemId = self.insertItem()
+        self.insertLot(itemId)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
+            self.connection.execute("DELETE FROM inventoryLots")
 
 
 if __name__ == "__main__":

@@ -78,6 +78,46 @@ def initializeDatabase(connection: sqlite3.Connection) -> None:
             SELECT RAISE(ABORT, 'History events are immutable');
         END
         """,
+        f"""
+        CREATE TABLE IF NOT EXISTS inventoryItems (
+            id TEXT PRIMARY KEY NOT NULL
+                CHECK (
+                    length(id) = 36
+                    AND id GLOB '????????-????-4???-[89ab]???-????????????'
+                    AND id NOT GLOB '*[^0-9a-f-]*'
+                ),
+            name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+            {_catalogCheck("locationId", catalogIds("locations"))},
+            {_catalogCheck("category", catalogIds("categories"))},
+            {_catalogCheck("unitOfMeasure", catalogIds("units"))},
+            reorderPointMilli INTEGER NOT NULL CHECK (reorderPointMilli >= 0),
+            createdAt TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS inventoryLots (
+            lotCode TEXT PRIMARY KEY NOT NULL CHECK (length(trim(lotCode)) > 0),
+            itemId TEXT NOT NULL REFERENCES inventoryItems(id),
+            expiryDate TEXT NOT NULL
+                CHECK (expiryDate GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+            receivedAt TEXT NOT NULL,
+            UNIQUE (itemId, lotCode)
+        )
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS inventoryLots_preventUpdate
+        BEFORE UPDATE ON inventoryLots
+        BEGIN
+            SELECT RAISE(ABORT, 'Inventory lots are immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS inventoryLots_preventDelete
+        BEFORE DELETE ON inventoryLots
+        BEGIN
+            SELECT RAISE(ABORT, 'Inventory lots are immutable');
+        END
+        """,
     )
 
     for statement in schemaStatements:
