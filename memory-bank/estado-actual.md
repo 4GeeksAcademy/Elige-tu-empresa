@@ -28,13 +28,14 @@
 ## Hecho (gestor de inventario, SDD)
 - Paso 01: arranque del encargo. Encargo anterior archivado en `registro/encargo-incidencias.md`, nuevo `encargo.md`, `AGENTS.md` y `memory-bank/README.md` actualizados; commit `2dd43a5`.
 - Paso 02: regla `05-desarrollo-guiado-por-spec` creada y `04-nombres-camel-case` ampliada con los valores de catálogo del briefing; commit `9208abc`.
-- Paso 03: `specs/inventory-manager/spec.md` v1.0 (INV-001–INV-066) aprobado por el usuario el 2026-10-28 con P-01–P-08 validadas; pendiente de commit.
+- Paso 03: `specs/inventory-manager/spec.md` v1.0 (INV-001–INV-066) aprobado con P-01–P-08 validadas; commit `464b60c`.
+- Paso 04: `specs/inventory-manager/plan.md` v1.0 (PD-01–PD-16) aprobado el 2026-10-28; commit en el siguiente registro.
 
 ## En curso
-- Paso 03 del inventario: a la espera del `OK commit`.
+- Paso 05 del inventario: redactar `tasks.md`.
 
 ## Siguiente
-- Paso 04 del inventario (modo Agent): escribir `specs/inventory-manager/plan.md` v1.0 y parar para su aprobación.
+- Paso 05 del inventario (modo Agent): escribir `specs/inventory-manager/tasks.md` v1.0 y parar para su aprobación.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.

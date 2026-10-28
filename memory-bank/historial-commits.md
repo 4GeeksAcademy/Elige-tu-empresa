@@ -551,3 +551,22 @@
 - **Desviaciones evitadas:** 05 → no se ha escrito plan ni código antes de aprobar el spec.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `docs(specs): redactar y aprobar spec v1.0 del gestor de inventario`
+
+## Paso 04 (inventario) — Plan v1.0
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** plan v1.0 · **Criterios:** INV-001–INV-066 (todos citados)
+- **Qué se hizo:**
+  - Leídos el §4.3 y el Paso 04 del encargo, el spec aprobado, `database.py`, `catalogs.py`, `server.py`, `incidents.py` y las reglas 01–04.
+  - Escrito `specs/inventory-manager/plan.md` con la plantilla §7.2: 16 decisiones `PD-01`–`PD-16`, modelo de datos sin columna de stock, `calculateStock` única, transacción `BEGIN IMMEDIATE` con trigger de respaldo, cantidades en milésimas, API, backoffice, semilla y pruebas.
+  - Comprobado con un script que los 66 criterios del spec están citados en el plan y que no cita ninguno inexistente.
+  - El plan queda en versión `1.0` aprobada por el usuario.
+- **Archivos:**
+  - `specs/inventory-manager/plan.md` — el cómo
+  - `memory-bank/estado-actual.md` — estado y hash del commit del Paso 03
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 02-guias-bilingues, 03-paquetes-y-recursos-compartidos, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** IDs de decisión con prefijo `PD-` en lugar de `D-` para no chocar con las `D-xx` del spec; módulo `inventoryseed.py` en minúsculas para seguir el patrón de `catalogs.py` e `incidents.py`.
+- **Desviaciones evitadas:** 05 → ni tareas ni código antes de aprobar el plan; principio 3 → sin dependencias nuevas ni herramientas de prueba de JavaScript.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(specs): redactar plan v1.0 del gestor de inventario`
