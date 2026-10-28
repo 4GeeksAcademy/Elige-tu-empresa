@@ -611,3 +611,23 @@
 - **Desviaciones evitadas:** 04 → valores de catálogo literales (`sauces_condiments`, `count_correction`); 05 → solo T-01.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): añadir catálogos del inventario`
+
+## Paso 06 (inventario) — T-02 Cantidades en milésimas
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-02 · **Criterios:** INV-003, INV-020
+- **Qué se hizo:**
+  - Escritos primero cinco tests en `test_inventory.py`; fallaban por falta de `services/api/inventory.py`.
+  - Creado `inventory.py` con `parseQuantity` (cadena decimal a milésimas enteras, precisión por unidad, rechazo de números JSON y de texto mal formado) y `formatQuantity` (inversa, con 3 decimales en `kg` y `l`, y entero en `g`, `ml` y `unit`), sin coma flotante (PD-02).
+  - Suite completa: 44 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — módulo nuevo con las dos funciones
+  - `services/api/tests/test_inventory.py` — tests de T-02
+  - `specs/inventory-manager/tasks.md` — T-02 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** `parseQuantity` es estricto: `12.0` en `ml` se rechaza por llevar un decimal. No hay tope de magnitud; un valor mayor que 9,2·10^15 desbordaría el entero de SQLite. El spec no fija un máximo y no se añade uno sin tu OK.
+- **Desviaciones evitadas:** 05 → solo T-02; no se añadió ningún tope no pedido.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): convertir cantidades decimales a milésimas`

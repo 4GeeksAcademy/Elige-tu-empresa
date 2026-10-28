@@ -31,13 +31,14 @@
 - Paso 03: `specs/inventory-manager/spec.md` v1.0 (INV-001–INV-066) aprobado con P-01–P-08 validadas; commit `464b60c`.
 - Paso 04: `specs/inventory-manager/plan.md` v1.0 (PD-01–PD-16) aprobado el 2026-10-28; commit `e739c57`.
 - Paso 05: `specs/inventory-manager/tasks.md` v1.0 (T-01–T-29) aprobado el 2026-10-28; commit `2673fd5`.
-- Paso 06, T-01: catálogos del inventario (`inventoryCatalogs`); 39 pruebas pasan; pendiente de commit.
+- Paso 06, T-01: catálogos del inventario (`inventoryCatalogs`); 39 pruebas pasan; commit `8333ab2`.
+- Paso 06, T-02: `parseQuantity` y `formatQuantity` en `services/api/inventory.py`; 44 pruebas pasan; pendiente de commit.
 
 ## En curso
-- Paso 06 del inventario: T-01 hecha, a la espera de tu `OK commit`.
+- Paso 06 del inventario: T-02 hecha, a la espera de tu `OK commit`.
 
 ## Siguiente
-- Paso 06 del inventario (modo Agent): T-02 (cantidades), con tests primero.
+- Paso 06 del inventario (modo Agent): T-03 (esquema de artículos y lotes), con tests primero.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
