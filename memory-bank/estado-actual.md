@@ -54,13 +54,14 @@
 - Paso 06, T-21: `getReorderSignal`; 144 pruebas pasan; commit `a03d510`.
 - Paso 06, T-22: `inventoryseed.py` con los 16 artículos y sus movimientos; 149 pruebas pasan; commit `d6c83fc`.
 - Paso 06, T-23: lote caducado de *Cilantro* en la semilla; 153 pruebas pasan; commit `4c1bf10`.
-- Paso 06, T-24: semilla atómica, rechazo con artículos y comando `python -m services.api.inventoryseed`; 158 pruebas pasan; pendiente de commit.
+- Paso 06, T-24: semilla atómica, rechazo con artículos y comando `python -m services.api.inventoryseed`; 158 pruebas pasan; commit `a69fbe6`.
+- Paso 06, T-25: rutas HTTP de catálogos y artículos; 169 pruebas pasan; pendiente de commit.
 
 ## En curso
-- Paso 06 del inventario: T-24 hecha, a la espera de tu `OK commit`.
+- Paso 06 del inventario: T-25 hecha, a la espera de tu `OK commit`.
 
 ## Siguiente
-- Paso 06 del inventario (modo Agent): T-25 (rutas HTTP de catálogos y artículos), con tests primero.
+- Paso 06 del inventario (modo Agent): T-26 (rutas de movimientos, informe y reorden, y README del servicio), con tests primero.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.

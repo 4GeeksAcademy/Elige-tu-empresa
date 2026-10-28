@@ -1110,3 +1110,27 @@
 - **Desviaciones evitadas:** 05 → sin rutas HTTP; principio 3 → `argparse` es biblioteca estándar, sin dependencias nuevas.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): cargar la semilla de forma atómica con comando propio`
+
+## Paso 06 (inventario) — T-25 Rutas HTTP de catálogos y artículos
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-25 · **Criterios:** INV-001, INV-002, INV-006, INV-007, INV-008, INV-009, INV-010, INV-037, INV-038
+- **Qué se hizo:**
+  - Escritos primero once tests en el archivo nuevo `test_inventoryapi.py`, con un servidor real en un puerto efímero y una base temporal; 17 fallos antes de implementar (todo daba 404). El test de regresión de `DELETE` sobre incidencias ya pasaba y se conserva.
+  - `server.py`: nuevo método `_dispatchInventoryAPI` para `/api/inventory/`: `GET catalogs`; `GET` y `POST items`; `GET`, `PATCH` y `DELETE items/{id}`. El filtro `locationId` admite un solo valor y rechaza cualquier otro parámetro; un identificador que no es UUID v4 da 404; `PUT` sigue en 405.
+  - Nueva cláusula en `_handleRequest`: `BusinessRuleError` responde 409 con `{"error": ...}` (PD-09). Los datos inválidos ya daban 400 y los inexistentes 404 con `ValueError` y `LookupError`.
+  - `do_DELETE` deja de rechazarlo todo: delega en el servidor, pero `DELETE` sobre cualquier ruta que no sea de inventario sigue devolviendo 405, como antes; un test lo comprueba.
+  - `GET /api/inventory/catalogs` devuelve `inventoryCatalogs` y `/api/catalogs` no cambia.
+  - Quité una rama de `PUT` que quedaba inalcanzable porque `do_PUT` ya responde 405.
+  - Suite completa: 169 pruebas pasan.
+- **Archivos:**
+  - `services/api/server.py` — rutas, 409 y `do_DELETE`
+  - `services/api/tests/test_inventoryapi.py` — tests de T-25
+  - `specs/inventory-manager/tasks.md` — T-25 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** las rutas de movimientos, informe y reorden son de T-26. Cada prueba tarda unos 0,5 s por el cierre del servidor, igual que las de `test_server.py`. La cabecera `Allow` del 405 no se ha tocado.
+- **Desviaciones evitadas:** 05 → solo T-25; sin cambiar el contrato de incidencias.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): exponer catálogos y artículos por HTTP`
