@@ -9,6 +9,7 @@ evidencia:
   - "packages/shared/types/index.ts: los campos createdAt y updatedAt usan camelCase y la interfaz BaseEntity usa PascalCase."
   - "shared/format-label.ts: la función formatLabel usa camelCase y el archivo format-label.ts usa kebab-case."
   - "Usuario, 2026-10-27: pidió mantener camelCase y confirmó cambiar también los IDs de catálogos y entidades."
+  - "Briefing, §2: «No inventes otros ni los renombres» (valores de catálogo del inventario). El archivo `company-BRIEFING.md` no existe; el usuario fijó `CONTEXT.md` como briefing el 2026-10-28."
 ---
 
 # Mantén las convenciones camelCase del código
@@ -17,6 +18,7 @@ evidencia:
 - Usa `camelCase` ASCII para variables, funciones, métodos, campos, propiedades, constantes e identificadores de dominio propiedad del proyecto.
 - Usa `PascalCase` para tipos, interfaces y clases, siguiendo el patrón existente de `BaseEntity`.
 - Conserva las etiquetas visibles para usuarios y los nombres impuestos por contratos externos, protocolos o interfaces obligatorias exactamente como los requiere su consumidor.
+- Conserva literalmente los valores de catálogo que fija `company-BRIEFING.md` (por ejemplo, `sauces_condiments` o `inbound`), porque son un contrato externo.
 - Mantén los nombres de archivos en el patrón ya establecido en su área; por ejemplo, `shared/format-label.ts`.
 - Al modificar código existente, no renombres identificadores ajenos al alcance de la tarea solo para aplicar la convención retroactivamente.
 

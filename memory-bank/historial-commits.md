@@ -490,3 +490,782 @@
 - **Desviaciones evitadas:** ninguna; no se inventó un registro de desviaciones inexistente.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `docs(memory-bank): registrar auditoría y descripción del PR`
+
+## Paso 01 (inventario) — Arranque del encargo
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** — · **Criterios:** —
+- **Qué se hizo:**
+  - Comprobada la rama `feature/inventory-manager` y el árbol limpio. No existe `main` (ni local ni remota); el usuario da por válido `6260bb2` (merge del PR #1) como base.
+  - `company-BRIEFING.md` no existe; el usuario decide usar `CONTEXT.md` como briefing y reconciliar los huecos. `CONTEXT.md` no contiene el dominio del inventario: queda como pendiente para el Paso 03.
+  - Archivado el encargo anterior con `git mv` en `memory-bank/registro/encargo-incidencias.md`.
+  - Creado el nuevo `memory-bank/encargo.md` con las secciones 1 a 7 del encargo, literales.
+  - Actualizados `AGENTS.md` (rama, filas de `specs/` y dominio del inventario, fuentes de verdad, paso de lectura SDD) y el índice `memory-bank/README.md`.
+- **Archivos:**
+  - `memory-bank/registro/encargo-incidencias.md` — encargo anterior archivado
+  - `memory-bank/encargo.md` — encargo de inventario
+  - `AGENTS.md` — rama y fuentes de verdad
+  - `memory-bank/README.md` — índice de memoria
+  - `memory-bank/estado-actual.md` — estado, decisiones y pendientes
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case.
+- **Decisiones y pendientes:** `CONTEXT.md` hace de `company-BRIEFING.md` (usuario, 2026-10-28). Falta la base `main`; se usa `6260bb2`.
+- **Desviaciones evitadas:** ninguna.
+- **Cambios respecto al plan:** dos comprobaciones del Paso 01 (rama `main` y `company-BRIEFING.md`) no cuadraban; el usuario las resolvió como se indica arriba.
+- **Commit:** `docs(memory-bank): arrancar encargo del gestor de inventario`
+
+## Paso 02 (inventario) — Reglas para trabajar guiado por el spec
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** — · **Criterios:** —
+- **Qué se hizo:**
+  - Creada la regla `05-desarrollo-guiado-por-spec` (`aplicacion: siempre`) con el orden spec → plan → tareas → código, el formato de `Checklist:` y las comprobaciones con `git log` y `grep`.
+  - Ampliada la regla `04-nombres-camel-case`: los valores de catálogo del briefing se conservan literalmente, con su evidencia.
+  - Probados los comandos de comprobación de la regla 05: se ejecutan y devuelven 0 = 0 porque aún no hay commits de implementación.
+- **Archivos:**
+  - `.agents/rules/05-desarrollo-guiado-por-spec.md` — regla nueva
+  - `.agents/rules/04-nombres-camel-case.md` — línea nueva en "Se hace" y evidencia
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case.
+- **Decisiones y pendientes:** la evidencia de la regla 04 cita «§2 del briefing» según el encargo; `CONTEXT.md` no contiene esa sección y la cita queda anotada como tal.
+- **Desviaciones evitadas:** ninguna.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(rules): añadir regla de desarrollo guiado por spec`
+
+## Paso 03 (inventario) — Spec v1.0
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** spec v1.0 · **Criterios:** INV-001–INV-066
+- **Qué se hizo:**
+  - Leído `CONTEXT.md` completo: no contiene el dominio del inventario, así que el spec se apoya en el §4 del encargo y marca los huecos como `pendiente`.
+  - Escrito `specs/inventory-manager/spec.md` con la plantilla §7.1: 66 criterios EARS, contratos de ocho operaciones, invariantes, decisiones D-01–D-17 y pendientes P-01–P-08.
+  - Comprobado con un script que los IDs INV-001–INV-066 no tienen huecos ni repeticiones y que el spec no usa palabras vagas.
+  - El usuario aprueba el spec: P-01 sin campos extra, P-02–P-07 según la propuesta y P-08 con los 4 locales. Estado `aprobado` y P-01–P-08 como `validada 2026-10-28`.
+- **Archivos:**
+  - `specs/inventory-manager/spec.md` — el qué
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** P-01–P-08 resueltas por el usuario (ver arriba); sin pendientes del spec.
+- **Desviaciones evitadas:** 05 → no se ha escrito plan ni código antes de aprobar el spec.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(specs): redactar y aprobar spec v1.0 del gestor de inventario`
+
+## Paso 04 (inventario) — Plan v1.0
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** plan v1.0 · **Criterios:** INV-001–INV-066 (todos citados)
+- **Qué se hizo:**
+  - Leídos el §4.3 y el Paso 04 del encargo, el spec aprobado, `database.py`, `catalogs.py`, `server.py`, `incidents.py` y las reglas 01–04.
+  - Escrito `specs/inventory-manager/plan.md` con la plantilla §7.2: 16 decisiones `PD-01`–`PD-16`, modelo de datos sin columna de stock, `calculateStock` única, transacción `BEGIN IMMEDIATE` con trigger de respaldo, cantidades en milésimas, API, backoffice, semilla y pruebas.
+  - Comprobado con un script que los 66 criterios del spec están citados en el plan y que no cita ninguno inexistente.
+  - El plan queda en versión `1.0` aprobada por el usuario.
+- **Archivos:**
+  - `specs/inventory-manager/plan.md` — el cómo
+  - `memory-bank/estado-actual.md` — estado y hash del commit del Paso 03
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 02-guias-bilingues, 03-paquetes-y-recursos-compartidos, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** IDs de decisión con prefijo `PD-` en lugar de `D-` para no chocar con las `D-xx` del spec; módulo `inventoryseed.py` en minúsculas para seguir el patrón de `catalogs.py` e `incidents.py`.
+- **Desviaciones evitadas:** 05 → ni tareas ni código antes de aprobar el plan; principio 3 → sin dependencias nuevas ni herramientas de prueba de JavaScript.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(specs): redactar plan v1.0 del gestor de inventario`
+
+## Paso 05 (inventario) — Tareas v1.0
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** tasks v1.0 · **Criterios:** INV-001–INV-066 (todos cubiertos)
+- **Qué se hizo:**
+  - Escrito `specs/inventory-manager/tasks.md` con la plantilla §7.3: 29 tareas (T-01–T-29) en el orden orientativo del encargo, cada una con criterios, dependencias, nombres de test y estado `pendiente`.
+  - Comprobado con un script: 0 criterios huérfanos, 0 inexistentes, 0 nombres de test repetidos, todas las dependencias apuntan a tareas anteriores y cada test pertenece a un criterio de su tarea.
+  - Las pruebas de la vista del backoffice comprueban el contenido servido; el comportamiento visual queda para el recorrido manual del Paso 07.
+  - El plan v1.0 se aprobó y se commiteó en `e739c57` antes de empezar.
+  - Las tareas quedan en versión `1.0` aprobada por el usuario.
+- **Archivos:**
+  - `specs/inventory-manager/tasks.md` — el orden
+  - `memory-bank/estado-actual.md` — estado y hash del plan
+  - `memory-bank/historial-commits.md` — registro del paso
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el trigger de stock no negativo (T-05) y `calculateStock` (T-07) comparten un único fragmento SQL de signo; un test lo comprueba.
+- **Desviaciones evitadas:** 05 → ningún código antes de aprobar las tareas.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(specs): redactar tareas v1.0 del gestor de inventario`
+
+## Paso 06 (inventario) — T-01 Catálogos del inventario
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-01 · **Criterios:** INV-002, INV-015, INV-022
+- **Qué se hizo:**
+  - Escritos primero cuatro tests en `services/api/tests/test_inventory.py`; fallaban por falta de `inventoryCatalogs`.
+  - Añadidos `units`, `categories`, `movementTypes`, `adjustmentReasons` y `locations` en `catalogs.py`, agrupados en `inventoryCatalogs`; `catalogIds` busca en los dos diccionarios y `/api/catalogs` no cambia (PD-13).
+  - Los valores de catálogo van literales; las etiquetas de unidades, categorías, tipos y motivos repiten su valor porque el spec no define otras; las de locales salen del §3 del spec.
+  - Suite completa: 39 pruebas pasan (35 de incidencias y 4 nuevas).
+- **Archivos:**
+  - `services/api/catalogs.py` — catálogos del inventario
+  - `services/api/tests/test_inventory.py` — tests de T-01
+  - `specs/inventory-manager/tasks.md` — T-01 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** ninguna.
+- **Desviaciones evitadas:** 04 → valores de catálogo literales (`sauces_condiments`, `count_correction`); 05 → solo T-01.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): añadir catálogos del inventario`
+
+## Paso 06 (inventario) — T-02 Cantidades en milésimas
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-02 · **Criterios:** INV-003, INV-020
+- **Qué se hizo:**
+  - Escritos primero cinco tests en `test_inventory.py`; fallaban por falta de `services/api/inventory.py`.
+  - Creado `inventory.py` con `parseQuantity` (cadena decimal a milésimas enteras, precisión por unidad, rechazo de números JSON y de texto mal formado) y `formatQuantity` (inversa, con 3 decimales en `kg` y `l`, y entero en `g`, `ml` y `unit`), sin coma flotante (PD-02).
+  - Suite completa: 44 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — módulo nuevo con las dos funciones
+  - `services/api/tests/test_inventory.py` — tests de T-02
+  - `specs/inventory-manager/tasks.md` — T-02 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** `parseQuantity` es estricto: `12.0` en `ml` se rechaza por llevar un decimal. No hay tope de magnitud; un valor mayor que 9,2·10^15 desbordaría el entero de SQLite. El spec no fija un máximo y no se añade uno sin tu OK.
+- **Desviaciones evitadas:** 05 → solo T-02; no se añadió ningún tope no pedido.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): convertir cantidades decimales a milésimas`
+
+## Paso 06 (inventario) — T-03 Esquema de artículos y lotes
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-03 · **Criterios:** INV-002, INV-003, INV-030, INV-031, INV-037
+- **Qué se hizo:**
+  - Escritos primero cinco tests «Sql» en `test_inventory.py`, sobre una base en memoria; fallaban porque las tablas no existían.
+  - Añadidas a `initializeDatabase` las tablas `inventoryItems` (UUID v4, `CHECK` de catálogos con `_catalogCheck`, `name` no vacío, `reorderPointMilli >= 0`) e `inventoryLots` (`lotCode` clave primaria global, `expiryDate` con forma `AAAA-MM-DD`, `UNIQUE (itemId, lotCode)` para la clave compuesta de T-04) y los triggers que impiden modificar o borrar un lote (PD-03, PD-04, PD-07).
+  - Ninguna de las dos tablas tiene columna de stock.
+  - Suite completa: 49 pruebas pasan.
+- **Archivos:**
+  - `services/api/database.py` — dos tablas y dos triggers
+  - `services/api/tests/test_inventory.py` — tests de T-03 y base común `InventorySchemaTestCase`
+  - `specs/inventory-manager/tasks.md` — T-03 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** las restricciones de lote que no son de esta tarea (unicidad global de `lotCode`, forma de `expiryDate`, clave foránea al artículo) están implementadas pero se prueban en T-04 y T-17; no se añadieron tests fuera de la lista de T-03.
+- **Desviaciones evitadas:** 05 → quité dos tests míos que correspondían a INV-028 e INV-033 y quedan para T-17 y T-04.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): crear tablas de artículos y lotes`
+
+## Paso 06 (inventario) — T-04 Esquema de movimientos
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-04 · **Criterios:** INV-011, INV-017, INV-018, INV-019, INV-021, INV-022, INV-033, INV-039
+- **Qué se hizo:**
+  - Escritos primero ocho tests «Sql» y el ayudante `insertMovement` en `test_inventory.py`; fallaban porque la tabla no existía.
+  - Añadida a `initializeDatabase` la tabla `stockMovements`: `CHECK` de catálogo de tipo, `CHECK` de signo y motivo (entradas y salidas positivas con motivo no vacío; ajustes distintos de cero, motivo del catálogo y negativos si son `waste` o `theft`), clave foránea compuesta `(itemId, lotCode)` hacia `inventoryLots(itemId, lotCode)`, dos índices y triggers que impiden modificar o borrar un movimiento (PD-04, PD-07).
+  - Con `lotCode` nulo la clave compuesta no se evalúa, así que los artículos sin lote registran movimientos.
+  - Suite completa: 57 pruebas pasan.
+- **Archivos:**
+  - `services/api/database.py` — tabla, índices y triggers
+  - `services/api/tests/test_inventory.py` — tests de T-04
+  - `specs/inventory-manager/tasks.md` — T-04 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** los tests de aceptación de esta tarea usan solo `inbound` y ajustes `count_correction`, porque T-05 prohibirá salidas sin stock previo.
+- **Desviaciones evitadas:** 05 → solo T-04; el stock no negativo se deja para T-05.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): crear tabla de movimientos de solo añadir`
+
+## Paso 06 (inventario) — T-05 Stock no negativo en la base de datos
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-05 · **Criterios:** INV-023, INV-024, INV-034
+- **Qué se hizo:**
+  - Escritos primero tres tests «Sql» en `test_inventory.py`; fallaban porque ningún trigger lo impedía.
+  - Añadida en `database.py` la función `stockDeltaSql`, el único fragmento SQL con el signo de cada tipo de movimiento (`outbound` negativo, el resto con su cantidad), y el trigger `stockMovements_preventNegativeStock`, que aborta un `INSERT` si el stock del artículo o el del lote quedaría por debajo de cero (PD-05, PD-06).
+  - `calculateStock` (T-07) reutilizará `stockDeltaSql`, de modo que la regla de signo vive en un solo sitio.
+  - Suite completa: 60 pruebas pasan.
+- **Archivos:**
+  - `services/api/database.py` — `stockDeltaSql` y trigger
+  - `services/api/tests/test_inventory.py` — tests de T-05
+  - `specs/inventory-manager/tasks.md` — T-05 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el trigger es la defensa; el rechazo con su tipo (regla de negocio) lo dará `registerMovement` en T-13 y T-14.
+- **Desviaciones evitadas:** 05 → solo T-05; sin `calculateStock` todavía.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): impedir stock negativo desde la base de datos`
+
+## Paso 06 (inventario) — T-06 Artículos con movimientos en la base de datos
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-06 · **Criterios:** INV-006, INV-008
+- **Qué se hizo:**
+  - Escritos primero tres tests «Sql» en `test_inventory.py`: cambio estructural rechazado con movimientos, permitido sin ellos, y baja rechazada con movimientos.
+  - Antes de implementar fallaron los tres subcasos de cambio estructural; la baja ya pasaba porque la clave foránea `stockMovements.itemId` (T-04) la impide sin `ON DELETE`.
+  - Añadido el trigger `inventoryItems_preventStructuralChangeWithMovements`: aborta un `UPDATE` que cambia `locationId`, `category` o `unitOfMeasure` de un artículo con movimientos. Un `UPDATE` que repite el mismo valor o que solo cambia `name` o `reorderPointMilli` pasa (PD-08).
+  - Suite completa: 63 pruebas pasan.
+- **Archivos:**
+  - `services/api/database.py` — trigger
+  - `services/api/tests/test_inventory.py` — tests de T-06
+  - `specs/inventory-manager/tasks.md` — T-06 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** repetir el valor actual de un campo estructural no se considera cambio en la base; si el caso de uso de T-09 debe rechazarlo, se decide allí con su test.
+- **Desviaciones evitadas:** 05 → solo T-06; el rechazo con su tipo lo darán `updateItem` y `deleteItem`.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): proteger artículos con movimientos en la base de datos`
+
+## Paso 06 (inventario) — T-07 Cálculo del stock
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-07 · **Criterios:** INV-035, INV-036, INV-040
+- **Qué se hizo:**
+  - Escritos primero cinco tests en `test_inventory.py`; fallaban por falta de `calculateStock`.
+  - Añadida en `inventory.py` `calculateStock(connection, *, itemId, locationId, groupByLot)`: devuelve milésimas por artículo o por (artículo, lote), con 0 para artículos sin movimientos, y usa `stockDeltaSql` de `database.py` (PD-05).
+  - Añadidos `InventoryItem`, `InventoryLot` y `StockMovement` a `models.py`, como pide el plan para esta tarea; se usan a partir de T-08.
+  - Un test comprueba que el trigger de T-05 y `calculateStock` comparten el fragmento de signo y coinciden en el límite exacto del stock.
+  - Un test mío tenía mal la suma esperada (5200, no 3200); corregí la expectativa, no la función.
+  - Suite completa: 68 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — `calculateStock`
+  - `services/api/models.py` — tres dataclasses
+  - `services/api/tests/test_inventory.py` — tests de T-07
+  - `specs/inventory-manager/tasks.md` — T-07 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** con `groupByLot`, solo salen los lotes que existen; los movimientos sin lote no aparecen en esa vista y sí en el stock del artículo.
+- **Desviaciones evitadas:** 05 → solo T-07; los modelos no tienen test propio porque la tarea no lo pide.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): calcular el stock desde los movimientos`
+
+## Paso 06 (inventario) — T-08 Alta de artículo
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-08 · **Criterios:** INV-001, INV-002, INV-003, INV-038
+- **Qué se hizo:**
+  - Escritos primero cinco tests en `test_inventory.py`; fallaban por falta de `createItem`.
+  - Añadidos en `inventory.py`: `BusinessRuleError` (aún sin uso, la usarán T-09 en adelante), la transacción auxiliar `_transaction` (abre `BEGIN IMMEDIATE` o se une a una abierta, PD-11), la validación `_validatedItemFields`, la vista `_itemView` con stock calculado por `calculateStock` y `createItem(connection, fields, now=None)`.
+  - `createItem` exige exactamente las cinco claves permitidas, de modo que `stock`, `quantity` y similares se rechazan por datos inválidos en el propio caso de uso (INV-038); valida `name`, catálogos y `reorderPoint` antes de escribir.
+  - Suite completa: 73 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — alta de artículo, excepción y transacción
+  - `services/api/tests/test_inventory.py` — tests de T-08
+  - `specs/inventory-manager/tasks.md` — T-08 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** `name` se guarda sin espacios laterales; la vista del artículo aún no incluye `expiredLots`, que se añade con los lotes caducados (T-19).
+- **Desviaciones evitadas:** 05 → solo T-08; sin `updateItem` ni listado.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): dar de alta artículos de inventario`
+
+## Paso 06 (inventario) — T-09 Edición de artículo
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-09 · **Criterios:** INV-002, INV-003, INV-004, INV-005, INV-006, INV-009, INV-038
+- **Qué se hizo:**
+  - Escritos primero siete tests en `test_inventory.py`; fallaban por falta de `updateItem`.
+  - Añadido `updateItem(connection, itemId, changes)` en `inventory.py`: comprueba las claves permitidas y que haya cambios, localiza el artículo (`LookupError` si no existe), valida el conjunto resultante con la misma validación del alta, rechaza con `BusinessRuleError` el cambio real de `locationId`, `category` o `unitOfMeasure` si hay movimientos, y actualiza todo en una transacción.
+  - Repetir el valor actual de un campo estructural con movimientos se acepta, igual que en el trigger de T-06.
+  - Cambiar la unidad convierte el `reorderPoint` existente a la precisión de la unidad nueva y se rechaza como datos inválidos si no cabe (por ejemplo, `2.500` pasando a `unit`).
+  - Un fallo real en mi primera versión (formateaba el `reorderPoint` anterior aunque llegara uno nuevo) se detectó con el test de INV-003 y se corrigió; `_decimalsFor` también captura `TypeError` para unidades no textuales.
+  - Suite completa: 80 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — `updateItem` y ayudantes
+  - `services/api/tests/test_inventory.py` — tests de T-09
+  - `specs/inventory-manager/tasks.md` — T-09 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** orden de validación en la edición: claves, existencia del artículo, valores y regla de negocio; así los valores se validan con la unidad real del artículo.
+- **Desviaciones evitadas:** 05 → solo T-09.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): editar artículos de inventario`
+
+## Paso 06 (inventario) — T-10 Baja de artículo
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-10 · **Criterios:** INV-007, INV-008, INV-009
+- **Qué se hizo:**
+  - Escritos tres tests en `test_inventory.py` (baja sin movimientos, rechazo con movimientos conservándolos, artículo inexistente).
+  - Añadido `deleteItem(connection, itemId)` en `inventory.py`: localiza el artículo (`LookupError`), rechaza con `BusinessRuleError` si tiene movimientos y, si no, lo borra y devuelve `{"deleted": id}`, todo en una transacción.
+  - Dos tests fallaron al principio por un defecto de mis ayudantes de test: los `INSERT` directos dejaban abierta una transacción y `deleteItem` se unía a ella sin confirmar. Los ayudantes `insertItem`, `insertLot` e `insertMovement` ahora confirman.
+  - Lancé tests e implementación en paralelo y no vi el estado rojo limpio; lo comprobé después sustituyendo `deleteItem` por un stub: 3 errores. Con la implementación real, verde.
+  - Suite completa: 83 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — `deleteItem`
+  - `services/api/tests/test_inventory.py` — tests de T-10 y ayudantes que confirman
+  - `specs/inventory-manager/tasks.md` — T-10 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** una transacción abierta por quien llama se respeta: los casos de uso se unen a ella y no la confirman (PD-11); en las pruebas, los ayudantes deben confirmar.
+- **Desviaciones evitadas:** 05 → solo T-10.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): dar de baja artículos sin movimientos`
+
+## Paso 06 (inventario) — T-11 Consulta y listado de artículos
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-11 · **Criterios:** INV-009, INV-010, INV-042, INV-043
+- **Qué se hizo:**
+  - Escritos primero seis tests en `test_inventory.py`; fallaban por falta de `getItem` y `listItems` (error de importación).
+  - Añadidos en `inventory.py` `getItem` (artículo inexistente → `LookupError`) y `listItems(connection, locationId=None)`: calcula el stock de todos los artículos con una sola llamada a `calculateStock`, ordena por local, nombre e id, y rechaza un local fuera del catálogo con `LookupError`.
+  - `_itemView` acepta ahora el stock ya calculado para no repetir la consulta por artículo.
+  - La marca `needsReorder` es verdadera con stock igual o menor que el punto de reorden, incluido un artículo sin movimientos.
+  - Suite completa: 89 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — `getItem`, `listItems`
+  - `services/api/tests/test_inventory.py` — tests de T-11
+  - `specs/inventory-manager/tasks.md` — T-11 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el orden del listado (local, nombre, id) no lo fija el spec; es una decisión de presentación estable. `expiredLots` se añade a la vista en T-19.
+- **Desviaciones evitadas:** 05 → solo T-11; sin señal de reorden ni informe.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): consultar y listar artículos con su stock`
+
+## Paso 06 (inventario) — T-12 Entradas sin lote
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-12 · **Criterios:** INV-011, INV-012, INV-015, INV-016, INV-017, INV-020, INV-021
+- **Qué se hizo:**
+  - Escritos primero seis tests en `test_inventory.py`; fallaban por falta de `registerMovement` (error de importación).
+  - Añadido `registerMovement(connection, itemId, fields, now=None)` en `inventory.py` para entradas: exige exactamente `movementType`, `quantity` y `reason` (cualquier otro campo, como `createdAt` o `stock`, se rechaza por datos inválidos), valida el tipo contra el catálogo, localiza el artículo (`LookupError`), valida cantidad positiva con la precisión de su unidad y motivo no vacío, asigna `createdAt` en UTC y devuelve el movimiento con el stock resultante.
+  - Las salidas y los ajustes, y los campos de lote, quedan fuera de esta tarea: un tipo válido que no sea `inbound` lanza `NotImplementedError` hasta T-13 y T-14, y `lotCode` y `expiryDate` se aceptarán en T-16 y T-17.
+  - Suite completa: 96 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — `registerMovement`
+  - `services/api/tests/test_inventory.py` — tests de T-12
+  - `specs/inventory-manager/tasks.md` — T-12 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el artículo se localiza antes de validar la cantidad, porque la precisión depende de su unidad; el tipo de movimiento y las claves se validan antes. El `NotImplementedError` es provisional y desaparece en T-13 y T-14.
+- **Desviaciones evitadas:** 05 → no se adelantó la lógica de salidas, ajustes ni lotes.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): registrar entradas de stock`
+
+## Paso 06 (inventario) — T-13 Salidas
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-13 · **Criterios:** INV-013, INV-017, INV-021, INV-023
+- **Qué se hizo:**
+  - Extraída en `test_inventory.py` la clase base `MovementTestCase` (artículo y ayudantes comunes) y escritos seis tests de salidas en `RegisterOutboundTests`; fallaban con el `NotImplementedError` provisional de T-12.
+  - `registerMovement` acepta ahora `outbound`: cantidad positiva y motivo no vacío (datos inválidos) y, en la misma transacción `BEGIN IMMEDIATE`, comprueba con `calculateStock` que el stock no queda por debajo de cero (`BusinessRuleError`); un rechazo no deja movimiento ni transacción abierta (PD-06).
+  - Una salida que deja el stock exactamente en 0 se acepta.
+  - Suite completa: 102 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — salidas en `registerMovement`
+  - `services/api/tests/test_inventory.py` — base común y tests de T-13
+  - `specs/inventory-manager/tasks.md` — T-13 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** los ajustes siguen con `NotImplementedError` hasta T-14; la concurrencia real se prueba en T-15.
+- **Desviaciones evitadas:** 05 → solo T-13.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): registrar salidas sin dejar stock negativo`
+
+## Paso 06 (inventario) — T-14 Ajustes
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-14 · **Criterios:** INV-014, INV-018, INV-019, INV-022, INV-024
+- **Qué se hizo:**
+  - Escritos primero seis tests en `RegisterAdjustmentTests`; fallaban con el `NotImplementedError` provisional (20 errores).
+  - `registerMovement` acepta ahora `adjustment`: cantidad con signo y distinta de cero, motivo del catálogo `adjustmentReasons`, `waste` y `theft` solo con cantidad negativa (todo datos inválidos) y rechazo por regla de negocio si el stock quedaría por debajo de cero.
+  - Reestructurado el cuerpo de `registerMovement` con una variable `stockChangeMilli` común a los tres tipos, de modo que la comprobación de stock se escribe una sola vez; desaparece el `NotImplementedError`.
+  - El motivo de un ajuste se guarda tal cual (valor de catálogo); el de entradas y salidas, sin espacios laterales.
+  - Suite completa: 108 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — ajustes y refactorización de `registerMovement`
+  - `services/api/tests/test_inventory.py` — tests de T-14
+  - `specs/inventory-manager/tasks.md` — T-14 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** `-0` se rechaza como cantidad cero.
+- **Desviaciones evitadas:** 05 → solo T-14; sin lotes ni caducados.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): registrar ajustes con motivo`
+
+## Paso 06 (inventario) — T-15 Concurrencia
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-15 · **Criterios:** INV-025
+- **Qué se hizo:**
+  - Escritos dos tests en `ConcurrentMovementTests` (`test_inventory.py`): ocho salidas simultáneas de 1 sobre un stock de 5, y ocho movimientos mezclados (salidas, ajustes y una entrada) lanzados a la vez con una `Barrier`. Cada hilo usa su propia conexión sobre un archivo SQLite temporal.
+  - Comprobado: se registran exactamente las 5 salidas que caben y las otras 3 fallan con `BusinessRuleError`; en el caso mezclado, el stock final es mayor o igual que cero, coincide con la suma de lo registrado y es menor que cualquier cantidad rechazada.
+  - No hubo código de producción nuevo: `BEGIN IMMEDIATE` de T-08 y la comprobación de T-13 y T-14 ya cumplían el criterio, así que los tests pasaron al escribirse. Para demostrar que detectan el fallo, cambié temporalmente `BEGIN IMMEDIATE` por `BEGIN` y fallaron en 3 de 3 ejecuciones; restauré el código y `git diff` sobre `inventory.py` queda vacío.
+  - Tres ejecuciones seguidas de los tests con el código real: verdes. Suite completa: 110 pruebas pasan.
+- **Archivos:**
+  - `services/api/tests/test_inventory.py` — tests de T-15
+  - `specs/inventory-manager/tasks.md` — T-15 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el asunto del commit usa `test(inventory)` porque no hay cambio de código de producción.
+- **Desviaciones evitadas:** 05 → solo T-15.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `test(inventory): probar movimientos concurrentes sobre un archivo`
+
+## Paso 06 (inventario) — T-16 Control de lote
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-16 · **Criterios:** INV-026, INV-027
+- **Qué se hizo:**
+  - Escritos primero tres tests en `LotControlTests`: los movimientos de los tres tipos sobre `meat` y `produce` sin lote se rechazan, y los de las otras cuatro categorías se aceptan sin lote. Antes de implementar fallaron los de INV-026 (10 fallos); los de INV-027 ya pasaban, porque describen el comportamiento actual que hay que conservar.
+  - Añadida en `registerMovement` la regla de negocio: un artículo de categoría `meat` o `produce` sin lote lanza `BusinessRuleError`, después de validar cantidad y motivo y antes de comprobar el stock, como ordena el plan §4.
+  - Hasta T-17 no existe el campo `lotCode` en las peticiones, así que `meat` y `produce` quedan sin posibilidad de registrar movimientos en este commit; T-17 lo abre. `lotCode = None` es el marcador provisional que T-17 sustituye por el valor de la petición.
+  - Suite completa: 113 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — constante `lotControlledCategories` y regla
+  - `services/api/tests/test_inventory.py` — tests de T-16
+  - `specs/inventory-manager/tasks.md` — T-16 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** ninguna.
+- **Desviaciones evitadas:** 05 → no se aceptó `lotCode` todavía.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): exigir lote en carnes y productos frescos`
+
+## Paso 06 (inventario) — T-17 Entradas con lote
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-17 · **Criterios:** INV-028, INV-029, INV-030, INV-031, INV-033, INV-055
+- **Qué se hizo:**
+  - Escritos primero siete tests en `InboundLotTests`; seis fallaban por no aceptar `lotCode` ni `expiryDate`. El de INV-029 pasaba de forma espuria («campo no admitido») y se comprobó después que sigue pasando por el motivo correcto.
+  - `registerMovement` acepta los campos opcionales `lotCode` y `expiryDate`. Nueva función `_resolveLot`: una entrada con un `lotCode` nuevo exige una `expiryDate` válida (`AAAA-MM-DD`, fecha real) y crea el lote con `receivedAt` igual al instante del registro; con un lote existente del mismo artículo suma sin cambiar su fecha; una fecha distinta o un lote de otro artículo son reglas de negocio. Un lote ya caducado puede abrirse (INV-055).
+  - El lote y su primer movimiento se insertan en la misma transacción; `expiryDate` sin `lotCode` y `lotCode` en blanco son datos inválidos.
+  - Las salidas y ajustes con `lotCode` lanzan `NotImplementedError` hasta T-18, y una `expiryDate` en un movimiento que no es una entrada se rechaza como datos inválidos.
+  - Suite completa: 120 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — `_resolveLot`, `_validatedExpiryDate` y campos opcionales
+  - `services/api/tests/test_inventory.py` — tests de T-17
+  - `specs/inventory-manager/tasks.md` — T-17 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** `lotCode` se guarda sin espacios laterales; los artículos que no son `meat` ni `produce` pueden abrir lotes con una entrada (el lote es opcional, no prohibido).
+- **Desviaciones evitadas:** 05 → no se implementó el lote en salidas ni ajustes.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): registrar entradas con lote`
+
+## Paso 06 (inventario) — T-18 Salidas y ajustes con lote
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-18 · **Criterios:** INV-032, INV-033, INV-034, INV-035
+- **Qué se hizo:**
+  - Extraída en `test_inventory.py` la base `LotTestCase` (ayudantes de lote) y escritos cinco tests en `LotMovementTests`; fallaban con el `NotImplementedError` provisional de T-17 (6 errores).
+  - `_resolveLot` ya no lanza `NotImplementedError`: una salida o un ajuste con un lote inexistente lanza `LookupError` y con el lote de otro artículo, `BusinessRuleError`. `registerMovement` rechaza con `BusinessRuleError` un movimiento que dejaría el stock de su lote por debajo de cero, comprobado antes que el stock del artículo.
+  - Suite completa: 125 pruebas pasan.
+  - **Incidencia:** `testInv025OnlyMovementsThatFitAreRegistered` (T-15) falló una vez de forma intermitente. El defecto era de mi test: la entrada de 0,5 del lote puede llegar después de un rechazo y subir el stock final por encima de la cantidad rechazada, así que la invariante `final < rechazada` era demasiado fuerte. Corregida a `final < rechazada + 0,5` con comentario; 40 ejecuciones seguidas sin fallos. El código de producción no cambió por esto. En T-15 solo repetí el test tres veces, insuficiente para detectar la intermitencia.
+- **Archivos:**
+  - `services/api/inventory.py` — lote en salidas y ajustes
+  - `services/api/tests/test_inventory.py` — tests de T-18 y corrección del test de T-15
+  - `specs/inventory-manager/tasks.md` — T-18 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** las reglas de lotes caducados quedan para T-19; los tests usan fechas de caducidad futuras respecto al instante fijado.
+- **Desviaciones evitadas:** 05 → solo T-18.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): registrar salidas y ajustes sobre un lote`
+
+## Paso 06 (inventario) — T-19 Lotes caducados
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-19 · **Criterios:** INV-048, INV-049, INV-050, INV-051, INV-052
+- **Qué se hizo:**
+  - Escritos primero seis tests en `ExpiredLotTests`; fallaban por falta de `isLotExpired` (error de importación).
+  - Añadida `isLotExpired(expiryDate, now)`: un lote está caducado si su `expiryDate` es anterior a la fecha UTC de `now`; se prueba el límite de medianoche UTC y un `now` con desfase horario.
+  - `registerMovement` calcula el instante una sola vez (`moment`) y, para salidas y ajustes con lote, rechaza con `BusinessRuleError` una salida sobre un lote caducado aunque tenga stock y un ajuste distinto de `waste`; un `waste` negativo se registra y reduce el stock del lote. La comprobación de caducidad va antes que las de stock. Las entradas no se restringen (INV-055).
+  - El stock caducado sigue contando en el stock disponible y en la marca de reorden del artículo (sin código nuevo; cubierto por el test de INV-049).
+  - Suite completa: 131 pruebas pasan; los tests de concurrencia se repitieron sin fallos.
+- **Archivos:**
+  - `services/api/inventory.py` — `isLotExpired` y reglas de caducidad
+  - `services/api/tests/test_inventory.py` — tests de T-19
+  - `specs/inventory-manager/tasks.md` — T-19 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** `expiredLots` en la vista del artículo (plan §5) no se añadió aquí porque ningún test de T-19 lo pide; se añade en T-20, donde el informe lo necesita, y en la vista de listado cuando el backoffice lo use (T-29).
+- **Desviaciones evitadas:** 05 → solo T-19; sin informe ni reorden.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): aplicar las reglas de lotes caducados`
+
+## Paso 06 (inventario) — T-20 Informe de stock
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-20 · **Criterios:** INV-009, INV-043, INV-045, INV-046, INV-047, INV-053
+- **Qué se hizo:**
+  - Escritos primero ocho tests en `StockReportTests`; fallaban por falta de `getStockReport` (error de importación).
+  - Añadido `getStockReport(connection, itemId, now=None)`: stock disponible (de `calculateStock`), marca de reorden, total de `inbound`, total de `outbound`, total de ajustes de `waste`, `theft` y `count_correction` por separado (siempre las tres, con su signo), y la lista de lotes ordenada por caducidad con `expiryDate`, `expired`, `stock` y `expiredStock`. Los totales por tipo son una agregación aparte; no calculan el stock (plan §3).
+  - Opción A acordada en la parada anterior: `expiredLots` (lotes caducados con stock, con `lotCode`, `expiryDate` y `stock`) se añade a la vista del artículo de `createItem`, `updateItem`, `getItem` y `listItems`, con un test extra bajo INV-053. `listItems` lo calcula con una sola consulta para todo el listado. `getItem` y `listItems` aceptan `now` opcional. El test de INV-010 que fijaba las claves de la vista se actualizó para incluir `expiredLots`.
+  - Refactor interno: `_itemView` es ahora una función pura (fila, stock y lotes caducados) y `_singleItemView` reúne los cálculos de un artículo.
+  - Suite completa: 139 pruebas pasan; los tests de concurrencia se repitieron 10 veces sin fallos.
+- **Archivos:**
+  - `services/api/inventory.py` — informe, `expiredLots` y refactor de la vista
+  - `services/api/tests/test_inventory.py` — tests de T-20 y clave nueva en el test de INV-010
+  - `specs/inventory-manager/tasks.md` — T-20 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el informe lista todos los lotes del artículo, también los de stock 0. El `adjustments[].total` lleva signo (negativo en `waste` y `theft`).
+- **Desviaciones evitadas:** 05 → sin señal de reorden ni rutas.
+- **Cambios respecto al plan:** ninguno; el plan §5 ya incluía `expiredLots` en la vista.
+- **Commit:** `feat(inventory): generar el informe de stock de un artículo`
+
+## Paso 06 (inventario) — T-21 Señal de reorden
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-21 · **Criterios:** INV-041, INV-042, INV-044, INV-049
+- **Qué se hizo:**
+  - Escritos primero cinco tests en `ReorderSignalTests`; fallaban por falta de `getReorderSignal` (error de importación).
+  - Añadido `getReorderSignal(connection, locationId)`: devuelve, ordenados por nombre, los artículos del local con stock igual o menor que su `reorderPoint` (`itemId`, `name`, `unitOfMeasure`, `stock` y `reorderPoint`), incluidos los que no tienen movimientos; un local fuera del catálogo, o que no sea texto, lanza `LookupError`. Usa `calculateStock` y cuenta el stock caducado.
+  - Un primer intento de los tests heredaba de `MovementTestCase`, cuyo artículo de base también aparecía en la señal y daba tres fallos falsos; la clase usa ahora `InventorySchemaTestCase`. Para ver el rojo real, sustituí temporalmente la función por un stub (8 errores) y la restauré; la suite queda verde.
+  - Suite completa: 144 pruebas pasan; los tests de concurrencia se repitieron 5 veces sin fallos.
+- **Archivos:**
+  - `services/api/inventory.py` — `getReorderSignal`
+  - `services/api/tests/test_inventory.py` — tests de T-21
+  - `specs/inventory-manager/tasks.md` — T-21 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el orden de la señal (nombre, id) es una decisión de presentación; el spec no lo fija. Con T-21 queda completa la capa de casos de uso (T-01 a T-21).
+- **Desviaciones evitadas:** 05 → sin semilla ni rutas.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): calcular la señal de reorden por local`
+
+## Paso 06 (inventario) — T-22 Semilla base
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-22 · **Criterios:** INV-059, INV-060, INV-061, INV-062, INV-063
+- **Qué se hizo:**
+  - Escritos primero cinco tests en el archivo nuevo `test_inventoryseed.py`; fallaban por falta de `inventoryseed.py`.
+  - Creado `services/api/inventoryseed.py` con los 16 artículos del §4.3 del encargo y `loadInventorySeed(connection, now=None)`, que los da de alta con `createItem` y registra todos sus movimientos con `registerMovement` (nunca inserta stock directamente).
+  - Esquema de movimientos del plan §7: artículo normal con entrada de 4·rp, salida de 1·rp y un ajuste de ±0,5·rp (el motivo cicla `waste`, `theft`, `count_correction` por posición); *Salsa de ajo de la casa* y *Envases para llevar* con entrada de 2·rp, salida de 1·rp y `waste` de −0,2·rp, que los deja en 0,8·rp, por debajo de su punto de reorden.
+  - Los artículos `meat` y `produce` llevan lote `<local>-<posición de dos cifras>` (por ejemplo `laArepita-01`) abierto con su entrada y con caducidad de 30 días desde la fecha de carga.
+  - El test de INV-060 sustituye `createItem` y `registerMovement` del módulo de la semilla por espías: 16 altas y tantas llamadas a `registerMovement` como filas de movimientos.
+  - *Cilantro* se carga como un artículo normal con un único lote futuro; su lote caducado llega en T-23. El rechazo con artículos existentes, la transacción única y el comando llegan en T-24.
+  - Suite completa: 149 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventoryseed.py` — módulo nuevo
+  - `services/api/tests/test_inventoryseed.py` — tests de T-22
+  - `specs/inventory-manager/tasks.md` — T-22 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** los motivos de entrada y salida van en español («Compra semanal», «Consumo de cocina») porque son texto libre de dominio; los códigos de lote son deterministas.
+- **Desviaciones evitadas:** 05 → sin lote caducado, sin rechazo y sin comando, que son T-23 y T-24.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): cargar artículos y movimientos semilla`
+
+## Paso 06 (inventario) — T-23 Lote caducado de Cilantro
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-23 · **Criterios:** INV-064, INV-065
+- **Qué se hizo:**
+  - Escritos primero cuatro tests en `SeedExpiredLotTests`; fallaban porque *Cilantro* tenía un único lote futuro (4 fallos).
+  - `inventoryseed.py`: el plan de movimientos de cada artículo indica ahora el lote de cada movimiento (`fresh`, `expired` o ninguno). *Cilantro* (queChille) abre un lote `queChille-06-expired` con `expiryDate` fija `2026-10-01` y una entrada de 4·rp, retira 0,5·rp con un ajuste `waste` sobre ese lote (INV-052) y conserva 3,5·rp; un segundo lote con la fecha relativa recibe una entrada de 2·rp y la salida de 1·rp. La salida no toca el lote caducado (INV-050).
+  - El resto de lotes sigue con `expiryDate` igual al día de la carga más 30 días. Un test carga la semilla con otra fecha (2027-03-01) y comprueba que las fechas relativas la siguen y que la de *Cilantro* no cambia.
+  - La `expiryDate` solo se envía en la primera entrada de cada lote, que es la que lo abre.
+  - Suite completa: 153 pruebas pasan; los tests de T-22 siguen en verde, con los tres motivos de ajuste presentes.
+- **Archivos:**
+  - `services/api/inventoryseed.py` — plan con lote y caso de *Cilantro*
+  - `services/api/tests/test_inventoryseed.py` — tests de T-23
+  - `specs/inventory-manager/tasks.md` — T-23 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el ajuste de *Cilantro* es siempre `waste`, porque un lote caducado solo admite ese motivo; los tres motivos siguen apareciendo en el conjunto de la semilla. El valor `2026-10-01` es el del encargo; no depende de la fecha de carga.
+- **Desviaciones evitadas:** 05 → sin rechazo, transacción única ni comando, que son T-24.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): sembrar el lote caducado de Cilantro`
+
+## Paso 06 (inventario) — T-24 Rechazo, atomicidad y comando de la semilla
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-24 · **Criterios:** INV-059, INV-066
+- **Qué se hizo:**
+  - Escritos primero cinco tests en `test_inventoryseed.py` (rechazo con artículos, segunda carga sin cambios, atomicidad ante un fallo en el movimiento 20, comando ejecutado con `subprocess` y códigos de salida de `main`); fallaban por falta de `main` (error de importación).
+  - `loadInventorySeed` corre ahora dentro de una sola transacción (`BEGIN IMMEDIATE`): comprueba que `inventoryItems` está vacía y, si no, lanza `BusinessRuleError` sin cambiar nada (INV-066); si cualquier alta o movimiento falla, no queda ningún dato cargado (PD-11).
+  - Añadida `main(argv)` con `argparse` de la biblioteca estándar y la opción `--database` (por defecto `data/incidents.sqlite`, la misma base que usa el servidor): crea la carpeta y el esquema, carga la semilla, imprime el resumen y devuelve 0, o devuelve 1 con el mensaje en stderr si la base ya tiene artículos. Comando: `python -m services.api.inventoryseed`.
+  - Para que la semilla use la transacción auxiliar sin importar un nombre privado, `_transaction` se renombra a `transaction` en `inventory.py` (cambio interno de nombre, sin cambio de comportamiento).
+  - Comprobado a mano contra un archivo temporal: primera ejecución «16 items, 49 movements» con salida 0; segunda con el mensaje de rechazo y salida 1; archivo temporal borrado.
+  - Suite completa: 158 pruebas pasan; los tests de concurrencia se repitieron 5 veces sin fallos.
+- **Archivos:**
+  - `services/api/inventoryseed.py` — transacción única, guarda y `main`
+  - `services/api/inventory.py` — `_transaction` pasa a `transaction`
+  - `services/api/tests/test_inventoryseed.py` — tests de T-24
+  - `specs/inventory-manager/tasks.md` — T-24 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** la guía `services/api/README.md` y `README.es.md` documentará el comando en T-26, como fija `tasks.md`. Con T-24 queda completa la semilla (T-22 a T-24).
+- **Desviaciones evitadas:** 05 → sin rutas HTTP; principio 3 → `argparse` es biblioteca estándar, sin dependencias nuevas.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): cargar la semilla de forma atómica con comando propio`
+
+## Paso 06 (inventario) — T-25 Rutas HTTP de catálogos y artículos
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-25 · **Criterios:** INV-001, INV-002, INV-006, INV-007, INV-008, INV-009, INV-010, INV-037, INV-038
+- **Qué se hizo:**
+  - Escritos primero once tests en el archivo nuevo `test_inventoryapi.py`, con un servidor real en un puerto efímero y una base temporal; 17 fallos antes de implementar (todo daba 404). El test de regresión de `DELETE` sobre incidencias ya pasaba y se conserva.
+  - `server.py`: nuevo método `_dispatchInventoryAPI` para `/api/inventory/`: `GET catalogs`; `GET` y `POST items`; `GET`, `PATCH` y `DELETE items/{id}`. El filtro `locationId` admite un solo valor y rechaza cualquier otro parámetro; un identificador que no es UUID v4 da 404; `PUT` sigue en 405.
+  - Nueva cláusula en `_handleRequest`: `BusinessRuleError` responde 409 con `{"error": ...}` (PD-09). Los datos inválidos ya daban 400 y los inexistentes 404 con `ValueError` y `LookupError`.
+  - `do_DELETE` deja de rechazarlo todo: delega en el servidor, pero `DELETE` sobre cualquier ruta que no sea de inventario sigue devolviendo 405, como antes; un test lo comprueba.
+  - `GET /api/inventory/catalogs` devuelve `inventoryCatalogs` y `/api/catalogs` no cambia.
+  - Quité una rama de `PUT` que quedaba inalcanzable porque `do_PUT` ya responde 405.
+  - Suite completa: 169 pruebas pasan.
+- **Archivos:**
+  - `services/api/server.py` — rutas, 409 y `do_DELETE`
+  - `services/api/tests/test_inventoryapi.py` — tests de T-25
+  - `specs/inventory-manager/tasks.md` — T-25 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** las rutas de movimientos, informe y reorden son de T-26. Cada prueba tarda unos 0,5 s por el cierre del servidor, igual que las de `test_server.py`. La cabecera `Allow` del 405 no se ha tocado.
+- **Desviaciones evitadas:** 05 → solo T-25; sin cambiar el contrato de incidencias.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): exponer catálogos y artículos por HTTP`
+
+## Paso 06 (inventario) — T-26 Rutas de movimientos, informe y reorden
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-26 · **Criterios:** INV-012, INV-015, INV-016, INV-020, INV-023, INV-039, INV-041, INV-044, INV-045
+- **Qué se hizo:**
+  - Escritos primero nueve tests en `InventoryMovementRoutesTests` (`test_inventoryapi.py`); 12 fallos y 3 errores antes de implementar (todo daba 404).
+  - `server.py`: `POST /api/inventory/items/{id}/movements` (201), `GET /api/inventory/items/{id}/report` (200) y `GET /api/inventory/locations/{locationId}/reorder` (200). Los rechazos usan el mapa de T-25: 400 por datos inválidos (tipo desconocido, cantidad como número JSON o con demasiados decimales, campos no admitidos), 404 por artículo o local inexistente y 409 por regla de negocio (stock negativo). Un id que no es UUID v4 da 404.
+  - No existe ninguna ruta para modificar o eliminar un movimiento: los métodos `PATCH`, `PUT` y `DELETE` sobre rutas de movimientos responden 404 o 405, y un test lo comprueba.
+  - Un test registra una entrada con `lotCode` y `expiryDate` por HTTP y comprueba el lote caducado en el informe y en `expiredLots` del artículo.
+  - Guías `services/api/README.md` y `README.es.md`: contenido ampliado, comando de la semilla, sección de inventario con las rutas y los códigos de rechazo, equivalentes en ambos idiomas (regla 02). Comprobación de `tasks.md`: `grep -c inventory` da 8 y 4, ambos mayores que 0.
+  - Suite completa: 178 pruebas pasan.
+- **Archivos:**
+  - `services/api/server.py` — tres rutas
+  - `services/api/tests/test_inventoryapi.py` — tests de T-26
+  - `services/api/README.md` y `services/api/README.es.md` — guías
+  - `specs/inventory-manager/tasks.md` — T-26 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 02-guias-bilingues, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** con T-26 queda completa la API de inventario (T-25 y T-26). Las guías del backoffice se actualizan en T-29.
+- **Desviaciones evitadas:** 05 → solo T-26; sin vista de backoffice.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): exponer movimientos, informe y reorden por HTTP`
+
+## Paso 06 (inventario) — T-27 Página de inventario en el backoffice
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-27 · **Criterios:** INV-056
+- **Qué se hizo:**
+  - Escritos primero tres tests en `InventoryBackofficePageTests` (`test_inventoryapi.py`): el servidor entrega `inventory.html` e `inventory.js`; la página tiene el selector de local, los formularios de alta y edición con los cinco campos, la tabla, y el script usa `POST`, `PATCH`, `DELETE` y el filtro `locationId` sin `innerHTML`; `index.html` y `inventory.html` se enlazan. Fallaban (6 fallos y 1 error).
+  - Creadas `uis/backoffice/inventory.html` e `inventory.js` sin framework, reutilizando `styles.css`: selector de local, tabla con artículo, local, categoría, stock con su unidad, punto de reorden y marca «Reordenar», formulario de alta, panel de edición y baja con confirmación. No existe ningún campo de stock; el texto de la API se inserta con `textContent`.
+  - `index.html`: el subtítulo «Centro de incidencias» de la cabecera pasa a ser un menú con «Incidencias» e «Inventario». `styles.css`: estilos del menú, de la marca de reorden y de las acciones de fila.
+  - Un test mío tenía una aserción demasiado literal (`/inventory/items`; el script compone `apiBase` más `/items`) y se corrigió.
+  - Comprobación de ejecución del JS, sin navegador: con el `node` que incluye VS Code se comprobó la sintaxis de `inventory.js` y de `app.js`, y se ejecutó `inventory.js` contra un servidor real con la semilla y un DOM mínimo simulado, en `/tmp`: 16 filas, marca de reorden en *Salsa de ajo de la casa* y *Envases para llevar*, alta (17 filas), filtro por local (5), edición, baja de un artículo sin movimientos y rechazo de la baja de uno con movimientos mostrando el mensaje. Servidor y temporales borrados; nada de esto queda en el repositorio.
+  - Suite completa: 181 pruebas pasan.
+- **Archivos:**
+  - `uis/backoffice/inventory.html` y `inventory.js` — página nueva
+  - `uis/backoffice/index.html` y `styles.css` — menú y estilos
+  - `services/api/tests/test_inventoryapi.py` — tests de T-27
+  - `specs/inventory-manager/tasks.md` — T-27 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** el stock se muestra por ahora como cifra y unidad; el texto «X disponibles, de ellos Y caducados» llega en T-29. La guía del backoffice se actualiza en T-29. El recorrido visual en un navegador real queda para el Paso 07.
+- **Desviaciones evitadas:** 05 → sin formulario de movimientos (T-28) ni informe (T-29); principio 3 → el `node` usado es el que ya trae VS Code y no se instaló nada.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): añadir la página de inventario al backoffice`
+
+## Paso 06 (inventario) — T-28 Formulario de movimientos en el backoffice
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-28 · **Criterios:** INV-037, INV-057
+- **Qué se hizo:**
+  - Añadidas primero cuatro pruebas de contenido servido: opciones de los tres tipos de movimiento, ausencia de campo de stock en el formulario y página, y uso del mensaje del servidor ante el rechazo. Las pruebas fallaron antes de la implementación por faltar el formulario.
+  - Añadido a `inventory.html` el formulario de movimientos con cantidad, motivo libre o motivo de ajuste, lote y fecha de caducidad condicional para un lote nuevo; no permite editar stock.
+  - `inventory.js` carga los artículos y los motivos de ajuste, consulta los lotes existentes para decidir cuándo pedir caducidad, envía `POST /items/{id}/movements`, refresca los artículos y muestra `error.message` tal cual.
+  - Suite completa: 185 pruebas pasan; `git diff --check` limpio.
+- **Archivos:**
+  - `uis/backoffice/inventory.html` y `inventory.js` — formulario de movimientos
+  - `services/api/tests/test_inventoryapi.py` — tests de T-28
+  - `specs/inventory-manager/tasks.md` — T-28 `hecha`
+  - `memory-bank/estado-actual.md` — T-27 corregida a commit `066c3ea` y T-28 en revisión
+  - `memory-bank/historial-commits.md` — registro de T-28
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** sin nuevas decisiones; commit `e295b29`.
+- **Desviaciones evitadas:** 05 → solo T-28, no se implementó T-29; no se añadieron dependencias.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): añadir el formulario de movimientos`
+
+## Paso 06 (inventario) — T-29 Informe, reorden y caducados en el backoffice
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-29 · **Criterios:** INV-054, INV-058
+- **Qué se hizo:**
+  - Añadidas primero tres pruebas estáticas para paneles de informe/reorden, separación de `waste` y `theft`, y formato del stock caducado; fallaron antes de implementar.
+  - Añadidos paneles de informe por artículo y señal de reorden por local, cargados desde los endpoints existentes. El informe presenta stock, punto de reorden, entradas, salidas, marca, ajustes separados y detalle de lotes.
+  - El listado presenta las cantidades disponibles y, cuando aplica, cada lote caducado con su cantidad y código. Los valores se insertan mediante `textContent`.
+  - Actualizadas las guías de backoffice en español e inglés, conservando las funcionalidades de incidencias y añadiendo la orientación de inventario.
+  - Suite completa: 188 pruebas pasan; `git diff --check` limpio; `grep -c "inventory"` devuelve 2 en cada guía. El comando `node --check` no pudo ejecutarse porque `node` no está instalado en este entorno.
+- **Archivos:**
+  - `uis/backoffice/inventory.html` e `inventory.js` — paneles de informe y reorden y presentación de stock caducado
+  - `services/api/tests/test_inventoryapi.py` — pruebas de T-29
+  - `uis/backoffice/README.md` y `README.es.md` — guías bilingües actualizadas
+  - `specs/inventory-manager/tasks.md` — T-29 `hecha`
+  - `memory-bank/estado-actual.md` y `memory-bank/historial-commits.md` — estado y bitácora
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 02-guias-bilingues, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** T-29 aprobada para commit; queda pendiente el recorrido manual del Paso 07.
+- **Desviaciones evitadas:** 05 → solo T-29, sin alterar spec o plan; no se añadieron dependencias.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): mostrar informes de stock en el backoffice`
+
+## Paso 07 (inventario) — Verificación y trazabilidad
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** Paso 07 · **Criterios:** INV-001–INV-066
+- **Qué se hizo:**
+  - Suite completa ejecutada: 188 pruebas, resultado `OK`.
+  - Recorrido HTTP registrado con base SQLite temporal: página 200; cuatro artículos por local; señales de reorden esperadas; ajustes `waste`, `theft` y `count_correction` separados; stock negativo y salida de lote caducado rechazados con 409; lote inexistente rechazado con 404 como recurso inexistente; ajuste `waste` 201 y saldo caducado posterior 0.000.
+  - Se comprobó la semilla previa (16 artículos, 49 movimientos) sin tocar la base persistente. La acción `waste` modificó solo la base temporal, cuyo estado resultante queda indicado en el registro.
+  - La tabla de trazabilidad cubre los 66 criterios con tareas, 152 métodos de test asociados y hashes de commits; cobertura validada: 66/66 con tests nombrados y todas las referencias existentes. Incluye pruebas de comportamientos no deseados.
+  - No hubo inspección visual en navegador: no se encontró navegador instalado en el entorno; no se afirma resultado visual.
+- **Archivos:**
+  - `memory-bank/registro/verificacion-inventario.md` — suite y resultados reales del recorrido.
+  - `memory-bank/registro/trazabilidad-inventario.md` — matriz INV → tarea → test → commit.
+  - `memory-bank/estado-actual.md` — cierre de Paso 07 y paso siguiente.
+  - `memory-bank/historial-commits.md` — bitácora de este paso.
+- **Reglas aplicadas:** 00-commits-y-bitacora, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** se considera aprobado el HTTP 404 para lote inexistente según el contrato de recurso inexistente; queda explícita la limitación de no inspección visual.
+- **Desviaciones evitadas:** 00 → solo archivos del paso, sin mezclar el cierre del Paso 09; 05 → no se cambió spec, plan ni código.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(memory-bank): verificar y trazar el gestor de inventario`
+
+## Paso 09 (inventario) — Cierre de memoria y preparación del PR
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** Paso 09 · **Criterios:** INV-001–INV-066
+- **Qué se hizo:**
+  - Sincronizado el estado final, el stack tecnológico, el contexto de producto y el índice del banco de memoria con el gestor entregado.
+  - Redactada la descripción del PR con las seis secciones requeridas: resumen; versiones de spec, plan y tareas; trazabilidad; cambio de requisito; verificación; reglas aplicadas.
+  - Verificados los 35 commits desde la base aceptada `6260bb2`, incluidos los 29 commits de implementación; todos los de implementación contienen `T-*` e `INV-*`. `origin/main` y `origin/feature/inventory-manager` existen y apuntan a `6260bb2`; no hay rama `main` local.
+  - `git diff 6260bb2..HEAD -- pyproject.toml` no presenta cambios. No se ejecutó un nuevo test de aplicación: este paso es documental y la suite completa (188 OK) consta en el Paso 07.
+  - Detectada una excepción de historial: el commit `2b6a7f5` del Paso 07 carece del cuerpo `Paso:`/`Checklist:` exigido por la regla 00. Se documenta para revisión; no se reescribe.
+- **Archivos:**
+  - `memory-bank/estado-actual.md` — estado final y auditoría.
+  - `memory-bank/stack-tecnologico.md` — módulos, persistencia, comandos y verificación.
+  - `memory-bank/contexto-producto.md` — resumen de inventario con enlace al spec.
+  - `memory-bank/README.md` — índice actualizado.
+  - `memory-bank/registro/descripcion-pr-inventario.md` — cuerpo propuesto del PR.
+  - `memory-bank/historial-commits.md` — bitácora del paso.
+- **Reglas aplicadas:** 00-commits-y-bitacora, 01-componentes-por-responsabilidad, 02-guias-bilingues, 03-paquetes-y-recursos-compartidos, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** no se recibió cambio de requisito, por lo que el spec sigue en v1.0 y no se regeneraron tareas. El commit y la publicación esperan autorización del usuario; `gh` no está instalado en el entorno. No se hará merge.
+- **Desviaciones evitadas:** no se modificaron requisitos ni código; no se publicará ni hará merge sin autorización; se conserva la historia publicada sin reescribir `2b6a7f5`.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `docs(memory-bank): cerrar memoria y preparar PR del inventario`

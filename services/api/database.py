@@ -14,6 +14,14 @@ def _catalogCheck(columnName: str, values: tuple[str, ...]) -> str:
     return f"{columnName} TEXT NOT NULL CHECK ({columnName} IN ({_sqlValues(values)}))"
 
 
+def stockDeltaSql(columnPrefix: str = "") -> str:
+    """SQL expression for the signed effect of one movement on stock."""
+    return (
+        f"CASE {columnPrefix}movementType WHEN 'outbound' "
+        f"THEN -{columnPrefix}quantityMilli ELSE {columnPrefix}quantityMilli END"
+    )
+
+
 def createConnection(databasePath: str | PathLike[str]) -> sqlite3.Connection:
     connection = sqlite3.connect(str(databasePath))
     connection.row_factory = sqlite3.Row
@@ -76,6 +84,132 @@ def initializeDatabase(connection: sqlite3.Connection) -> None:
         BEFORE DELETE ON historyEvents
         BEGIN
             SELECT RAISE(ABORT, 'History events are immutable');
+        END
+        """,
+        f"""
+        CREATE TABLE IF NOT EXISTS inventoryItems (
+            id TEXT PRIMARY KEY NOT NULL
+                CHECK (
+                    length(id) = 36
+                    AND id GLOB '????????-????-4???-[89ab]???-????????????'
+                    AND id NOT GLOB '*[^0-9a-f-]*'
+                ),
+            name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+            {_catalogCheck("locationId", catalogIds("locations"))},
+            {_catalogCheck("category", catalogIds("categories"))},
+            {_catalogCheck("unitOfMeasure", catalogIds("units"))},
+            reorderPointMilli INTEGER NOT NULL CHECK (reorderPointMilli >= 0),
+            createdAt TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS inventoryLots (
+            lotCode TEXT PRIMARY KEY NOT NULL CHECK (length(trim(lotCode)) > 0),
+            itemId TEXT NOT NULL REFERENCES inventoryItems(id),
+            expiryDate TEXT NOT NULL
+                CHECK (expiryDate GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+            receivedAt TEXT NOT NULL,
+            UNIQUE (itemId, lotCode)
+        )
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS inventoryLots_preventUpdate
+        BEFORE UPDATE ON inventoryLots
+        BEGIN
+            SELECT RAISE(ABORT, 'Inventory lots are immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS inventoryLots_preventDelete
+        BEFORE DELETE ON inventoryLots
+        BEGIN
+            SELECT RAISE(ABORT, 'Inventory lots are immutable');
+        END
+        """,
+        f"""
+        CREATE TABLE IF NOT EXISTS stockMovements (
+            id TEXT PRIMARY KEY NOT NULL
+                CHECK (
+                    length(id) = 36
+                    AND id GLOB '????????-????-4???-[89ab]???-????????????'
+                    AND id NOT GLOB '*[^0-9a-f-]*'
+                ),
+            itemId TEXT NOT NULL REFERENCES inventoryItems(id),
+            lotCode TEXT,
+            {_catalogCheck("movementType", catalogIds("movementTypes"))},
+            quantityMilli INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (itemId, lotCode) REFERENCES inventoryLots(itemId, lotCode),
+            CHECK (
+                (
+                    movementType IN ('inbound', 'outbound')
+                    AND quantityMilli > 0
+                    AND length(trim(reason)) > 0
+                )
+                OR (
+                    movementType = 'adjustment'
+                    AND quantityMilli <> 0
+                    AND reason IN ({_sqlValues(catalogIds("adjustmentReasons"))})
+                    AND (reason = 'count_correction' OR quantityMilli < 0)
+                )
+            )
+        )
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS stockMovementsItemIdCreatedAt
+        ON stockMovements (itemId, createdAt)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS stockMovementsItemIdLotCode
+        ON stockMovements (itemId, lotCode)
+        """,
+        f"""
+        CREATE TRIGGER IF NOT EXISTS stockMovements_preventNegativeStock
+        BEFORE INSERT ON stockMovements
+        BEGIN
+            SELECT RAISE(ABORT, 'Item stock cannot be negative')
+            WHERE COALESCE(
+                (
+                    SELECT SUM({stockDeltaSql()}) FROM stockMovements
+                    WHERE itemId = NEW.itemId
+                ),
+                0
+            ) + {stockDeltaSql("NEW.")} < 0;
+            SELECT RAISE(ABORT, 'Lot stock cannot be negative')
+            WHERE NEW.lotCode IS NOT NULL AND COALESCE(
+                (
+                    SELECT SUM({stockDeltaSql()}) FROM stockMovements
+                    WHERE itemId = NEW.itemId AND lotCode = NEW.lotCode
+                ),
+                0
+            ) + {stockDeltaSql("NEW.")} < 0;
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS inventoryItems_preventStructuralChangeWithMovements
+        BEFORE UPDATE ON inventoryItems
+        WHEN (
+            NEW.locationId IS NOT OLD.locationId
+            OR NEW.category IS NOT OLD.category
+            OR NEW.unitOfMeasure IS NOT OLD.unitOfMeasure
+        ) AND EXISTS (SELECT 1 FROM stockMovements WHERE itemId = OLD.id)
+        BEGIN
+            SELECT RAISE(ABORT, 'Item has movements: location, category and unit cannot change');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS stockMovements_preventUpdate
+        BEFORE UPDATE ON stockMovements
+        BEGIN
+            SELECT RAISE(ABORT, 'Stock movements are immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS stockMovements_preventDelete
+        BEFORE DELETE ON stockMovements
+        BEGIN
+            SELECT RAISE(ABORT, 'Stock movements are immutable');
         END
         """,
     )

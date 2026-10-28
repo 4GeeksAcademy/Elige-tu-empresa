@@ -37,6 +37,36 @@ class IncidentDetails:
     historyEvents: tuple[HistoryEvent, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class InventoryItem:
+    id: str
+    name: str
+    locationId: str
+    category: str
+    unitOfMeasure: str
+    reorderPointMilli: int
+    createdAt: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class InventoryLot:
+    lotCode: str
+    itemId: str
+    expiryDate: str
+    receivedAt: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class StockMovement:
+    id: str
+    itemId: str
+    lotCode: str | None
+    movementType: str
+    quantityMilli: int
+    reason: str
+    createdAt: datetime
+
+
 def generateId() -> str:
     return str(uuid4())
 

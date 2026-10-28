@@ -1,0 +1,507 @@
+"""Inventory use cases and stock helpers."""
+
+import re
+import sqlite3
+from contextlib import contextmanager
+from datetime import date, datetime, timezone
+
+from services.api.catalogs import catalogIds
+from services.api.database import stockDeltaSql
+from services.api.models import formatUtcTimestamp, generateId, utcNow
+
+quantityScale = 1000
+unitDecimals = {"kg": 3, "l": 3, "g": 0, "ml": 0, "unit": 0}
+quantityPattern = re.compile(r"-?(\d+)(?:\.(\d+))?")
+itemFieldNames = frozenset({"name", "locationId", "category", "unitOfMeasure", "reorderPoint"})
+movementFieldNames = frozenset({"movementType", "quantity", "reason"})
+optionalMovementFieldNames = frozenset({"lotCode", "expiryDate"})
+reducingAdjustmentReasons = ("waste", "theft")
+lotControlledCategories = ("meat", "produce")
+
+
+class BusinessRuleError(Exception):
+    """The data is valid, but the operation breaks a stock, lot, expiry or state rule."""
+
+
+@contextmanager
+def transaction(connection: sqlite3.Connection):
+    """Open an immediate transaction, or join the one the caller already opened."""
+    if connection.in_transaction:
+        yield
+        return
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        yield
+    except BaseException:
+        connection.rollback()
+        raise
+    connection.commit()
+
+
+def _decimalsFor(unitOfMeasure: str) -> int:
+    try:
+        return unitDecimals[unitOfMeasure]
+    except (KeyError, TypeError) as error:
+        raise ValueError(f"Unknown unit: {unitOfMeasure}") from error
+
+
+def parseQuantity(text: object, unitOfMeasure: str) -> int:
+    """Convert a decimal string to integer thousandths using the unit precision."""
+    allowedDecimals = _decimalsFor(unitOfMeasure)
+    if not isinstance(text, str):
+        raise ValueError("Quantity must be a decimal string")
+    match = quantityPattern.fullmatch(text)
+    if match is None:
+        raise ValueError("Quantity must be a decimal string such as 12.500")
+    wholePart, decimalPart = match.group(1), match.group(2) or ""
+    if len(decimalPart) > allowedDecimals:
+        raise ValueError(f"Quantity admits at most {allowedDecimals} decimal places for {unitOfMeasure}")
+    thousandths = int(wholePart) * quantityScale + int(decimalPart.ljust(3, "0") or "0")
+    return -thousandths if text.startswith("-") else thousandths
+
+
+def formatQuantity(thousandths: int, unitOfMeasure: str) -> str:
+    """Convert integer thousandths to a decimal string with the unit precision."""
+    allowedDecimals = _decimalsFor(unitOfMeasure)
+    sign = "-" if thousandths < 0 else ""
+    whole, fraction = divmod(abs(thousandths), quantityScale)
+    if allowedDecimals == 0:
+        if fraction:
+            raise ValueError(f"Quantity admits no decimal places for {unitOfMeasure}")
+        return f"{sign}{whole}"
+    return f"{sign}{whole}.{fraction:03d}"
+
+
+def calculateStock(
+    connection: sqlite3.Connection,
+    *,
+    itemId: str | None = None,
+    locationId: str | None = None,
+    groupByLot: bool = False,
+) -> dict:
+    """Stock in thousandths keyed by item id, or by (item id, lot code) with groupByLot."""
+    delta = stockDeltaSql("m.")
+    if groupByLot:
+        query = f"""
+            SELECT l.itemId AS itemId, l.lotCode AS lotCode, COALESCE(SUM({delta}), 0) AS stock
+            FROM inventoryLots l
+            JOIN inventoryItems i ON i.id = l.itemId
+            LEFT JOIN stockMovements m ON m.itemId = l.itemId AND m.lotCode = l.lotCode
+            WHERE (:itemId IS NULL OR i.id = :itemId) AND (:locationId IS NULL OR i.locationId = :locationId)
+            GROUP BY l.itemId, l.lotCode
+        """
+    else:
+        query = f"""
+            SELECT i.id AS itemId, NULL AS lotCode, COALESCE(SUM({delta}), 0) AS stock
+            FROM inventoryItems i
+            LEFT JOIN stockMovements m ON m.itemId = i.id
+            WHERE (:itemId IS NULL OR i.id = :itemId) AND (:locationId IS NULL OR i.locationId = :locationId)
+            GROUP BY i.id
+        """
+    rows = connection.execute(query, {"itemId": itemId, "locationId": locationId})
+    if groupByLot:
+        return {(row["itemId"], row["lotCode"]): row["stock"] for row in rows}
+    return {row["itemId"]: row["stock"] for row in rows}
+
+
+def _requireSupportedFields(fields: dict) -> None:
+    if not isinstance(fields, dict):
+        raise ValueError("Item fields must be an object")
+    unsupported = fields.keys() - itemFieldNames
+    if unsupported:
+        raise ValueError(f"Unsupported fields: {', '.join(sorted(unsupported))}")
+
+
+def _validatedItemFields(fields: dict) -> dict:
+    _requireSupportedFields(fields)
+    missing = itemFieldNames - fields.keys()
+    if missing:
+        raise ValueError(f"Missing required fields: {', '.join(sorted(missing))}")
+
+    name = fields["name"]
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("name must be a non-empty string")
+    validated = {"name": name.strip()}
+    for fieldName, catalogName in (
+        ("locationId", "locations"),
+        ("category", "categories"),
+        ("unitOfMeasure", "units"),
+    ):
+        value = fields[fieldName]
+        if not isinstance(value, str) or value not in catalogIds(catalogName):
+            raise ValueError(f"{fieldName} is not in the {catalogName} catalog")
+        validated[fieldName] = value
+
+    reorderPointMilli = parseQuantity(fields["reorderPoint"], validated["unitOfMeasure"])
+    if reorderPointMilli < 0:
+        raise ValueError("reorderPoint must not be negative")
+    validated["reorderPointMilli"] = reorderPointMilli
+    return validated
+
+
+def _expiredLotsByItem(
+    connection: sqlite3.Connection,
+    now: datetime,
+    itemId: str | None = None,
+    locationId: str | None = None,
+) -> dict[str, list[dict]]:
+    """Lots past their expiry date that still hold stock, grouped by item."""
+    stockByLot = calculateStock(connection, itemId=itemId, locationId=locationId, groupByLot=True)
+    rows = connection.execute(
+        """
+        SELECT l.itemId, l.lotCode, l.expiryDate, i.unitOfMeasure
+        FROM inventoryLots l
+        JOIN inventoryItems i ON i.id = l.itemId
+        WHERE (:itemId IS NULL OR i.id = :itemId) AND (:locationId IS NULL OR i.locationId = :locationId)
+        ORDER BY l.expiryDate, l.lotCode
+        """,
+        {"itemId": itemId, "locationId": locationId},
+    )
+    expiredLots: dict[str, list[dict]] = {}
+    for row in rows:
+        lotStockMilli = stockByLot.get((row["itemId"], row["lotCode"]), 0)
+        if lotStockMilli > 0 and isLotExpired(row["expiryDate"], now):
+            expiredLots.setdefault(row["itemId"], []).append(
+                {
+                    "lotCode": row["lotCode"],
+                    "expiryDate": row["expiryDate"],
+                    "stock": formatQuantity(lotStockMilli, row["unitOfMeasure"]),
+                }
+            )
+    return expiredLots
+
+
+def _itemView(row: sqlite3.Row, stockMilli: int, expiredLots: list[dict]) -> dict:
+    unitOfMeasure = row["unitOfMeasure"]
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "locationId": row["locationId"],
+        "category": row["category"],
+        "unitOfMeasure": unitOfMeasure,
+        "reorderPoint": formatQuantity(row["reorderPointMilli"], unitOfMeasure),
+        "stock": formatQuantity(stockMilli, unitOfMeasure),
+        "needsReorder": stockMilli <= row["reorderPointMilli"],
+        "expiredLots": expiredLots,
+        "createdAt": row["createdAt"],
+    }
+
+
+def _singleItemView(connection: sqlite3.Connection, itemId: str, now: datetime | None = None) -> dict:
+    row = _fetchItemRow(connection, itemId)
+    stockMilli = calculateStock(connection, itemId=itemId)[itemId]
+    expiredLots = _expiredLotsByItem(connection, now or utcNow(), itemId=itemId).get(itemId, [])
+    return _itemView(row, stockMilli, expiredLots)
+
+
+def createItem(connection: sqlite3.Connection, fields: dict, now: datetime | None = None) -> dict:
+    validated = _validatedItemFields(fields)
+    itemId = generateId()
+    with transaction(connection):
+        connection.execute(
+            """
+            INSERT INTO inventoryItems (
+                id, name, locationId, category, unitOfMeasure, reorderPointMilli, createdAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                itemId,
+                validated["name"],
+                validated["locationId"],
+                validated["category"],
+                validated["unitOfMeasure"],
+                validated["reorderPointMilli"],
+                formatUtcTimestamp(now or utcNow()),
+            ),
+        )
+        return _singleItemView(connection, itemId, now)
+
+
+def _fetchItemRow(connection: sqlite3.Connection, itemId: str) -> sqlite3.Row:
+    row = connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (itemId,)).fetchone()
+    if row is None:
+        raise LookupError("Item not found")
+    return row
+
+
+def _hasMovements(connection: sqlite3.Connection, itemId: str) -> bool:
+    return connection.execute("SELECT 1 FROM stockMovements WHERE itemId = ? LIMIT 1", (itemId,)).fetchone() is not None
+
+
+def updateItem(connection: sqlite3.Connection, itemId: str, changes: dict) -> dict:
+    _requireSupportedFields(changes)
+    if not changes:
+        raise ValueError("No fields to update")
+    with transaction(connection):
+        row = _fetchItemRow(connection, itemId)
+        merged = {
+            "name": row["name"],
+            "locationId": row["locationId"],
+            "category": row["category"],
+            "unitOfMeasure": row["unitOfMeasure"],
+            **changes,
+        }
+        if "reorderPoint" not in changes:
+            merged["reorderPoint"] = formatQuantity(row["reorderPointMilli"], merged["unitOfMeasure"])
+        validated = _validatedItemFields(merged)
+        structuralChange = any(
+            validated[fieldName] != row[fieldName] for fieldName in ("locationId", "category", "unitOfMeasure")
+        )
+        if structuralChange and _hasMovements(connection, itemId):
+            raise BusinessRuleError("locationId, category and unitOfMeasure cannot change once the item has movements")
+        connection.execute(
+            """
+            UPDATE inventoryItems
+            SET name = ?, locationId = ?, category = ?, unitOfMeasure = ?, reorderPointMilli = ?
+            WHERE id = ?
+            """,
+            (
+                validated["name"],
+                validated["locationId"],
+                validated["category"],
+                validated["unitOfMeasure"],
+                validated["reorderPointMilli"],
+                itemId,
+            ),
+        )
+        return _singleItemView(connection, itemId)
+
+
+def deleteItem(connection: sqlite3.Connection, itemId: str) -> dict:
+    with transaction(connection):
+        _fetchItemRow(connection, itemId)
+        if _hasMovements(connection, itemId):
+            raise BusinessRuleError("An item with movements cannot be deleted")
+        connection.execute("DELETE FROM inventoryItems WHERE id = ?", (itemId,))
+    return {"deleted": itemId}
+
+
+def getItem(connection: sqlite3.Connection, itemId: str, now: datetime | None = None) -> dict:
+    return _singleItemView(connection, itemId, now)
+
+
+def listItems(
+    connection: sqlite3.Connection,
+    locationId: str | None = None,
+    now: datetime | None = None,
+) -> list[dict]:
+    if locationId is not None and (not isinstance(locationId, str) or locationId not in catalogIds("locations")):
+        raise LookupError("Location not found")
+    stockByItem = calculateStock(connection, locationId=locationId)
+    expiredLots = _expiredLotsByItem(connection, now or utcNow(), locationId=locationId)
+    rows = connection.execute(
+        """
+        SELECT * FROM inventoryItems
+        WHERE (:locationId IS NULL OR locationId = :locationId)
+        ORDER BY locationId, name, id
+        """,
+        {"locationId": locationId},
+    ).fetchall()
+    return [_itemView(row, stockByItem[row["id"]], expiredLots.get(row["id"], [])) for row in rows]
+
+
+def isLotExpired(expiryDate: str, now: datetime) -> bool:
+    """A lot is expired when its expiry date is before the current UTC date."""
+    return expiryDate < now.astimezone(timezone.utc).date().isoformat()
+
+
+def _validatedExpiryDate(value: object) -> str:
+    if not isinstance(value, str) or len(value) != 10:
+        raise ValueError("expiryDate must be a date written as YYYY-MM-DD")
+    try:
+        date.fromisoformat(value)
+    except ValueError as error:
+        raise ValueError("expiryDate must be a valid date written as YYYY-MM-DD") from error
+    return value
+
+
+def _resolveLot(
+    connection: sqlite3.Connection,
+    itemRow: sqlite3.Row,
+    movementType: str,
+    fields: dict,
+) -> tuple[str | None, str | None]:
+    """Return the lot code of a movement and the expiry date when the movement opens that lot."""
+    lotCode = fields.get("lotCode")
+    expiryDate = fields.get("expiryDate")
+    if lotCode is None:
+        if expiryDate is not None:
+            raise ValueError("expiryDate requires lotCode")
+        return None, None
+    if not isinstance(lotCode, str) or not lotCode.strip():
+        raise ValueError("lotCode must be a non-empty string")
+    lotCode = lotCode.strip()
+    if expiryDate is not None:
+        expiryDate = _validatedExpiryDate(expiryDate)
+        if movementType != "inbound":
+            raise ValueError("expiryDate only applies to inbound movements")
+
+    lotRow = connection.execute("SELECT * FROM inventoryLots WHERE lotCode = ?", (lotCode,)).fetchone()
+    if lotRow is None:
+        if movementType != "inbound":
+            raise LookupError("Lot not found")
+        if expiryDate is None:
+            raise ValueError("expiryDate is required to open a new lot")
+        return lotCode, expiryDate
+    if lotRow["itemId"] != itemRow["id"]:
+        raise BusinessRuleError("The lot belongs to another item")
+    if expiryDate is not None and expiryDate != lotRow["expiryDate"]:
+        raise BusinessRuleError("expiryDate differs from the expiryDate of the existing lot")
+    return lotCode, None
+
+
+def registerMovement(
+    connection: sqlite3.Connection,
+    itemId: str,
+    fields: dict,
+    now: datetime | None = None,
+) -> dict:
+    if not isinstance(fields, dict):
+        raise ValueError("Movement fields must be an object")
+    unsupported = fields.keys() - movementFieldNames - optionalMovementFieldNames
+    if unsupported:
+        raise ValueError(f"Unsupported fields: {', '.join(sorted(unsupported))}")
+    missing = movementFieldNames - fields.keys()
+    if missing:
+        raise ValueError(f"Missing required fields: {', '.join(sorted(missing))}")
+    movementType = fields["movementType"]
+    if not isinstance(movementType, str) or movementType not in catalogIds("movementTypes"):
+        raise ValueError("movementType is not in the movementTypes catalog")
+
+    moment = now or utcNow()
+    with transaction(connection):
+        itemRow = _fetchItemRow(connection, itemId)
+        unitOfMeasure = itemRow["unitOfMeasure"]
+        quantityMilli = parseQuantity(fields["quantity"], unitOfMeasure)
+        reason = fields["reason"]
+        if movementType == "adjustment":
+            if quantityMilli == 0:
+                raise ValueError("quantity must not be zero")
+            if not isinstance(reason, str) or reason not in catalogIds("adjustmentReasons"):
+                raise ValueError("reason is not in the adjustmentReasons catalog")
+            if reason in reducingAdjustmentReasons and quantityMilli > 0:
+                raise ValueError(f"quantity must be negative for {reason}")
+            stockChangeMilli = quantityMilli
+        else:
+            if quantityMilli <= 0:
+                raise ValueError("quantity must be positive")
+            if not isinstance(reason, str) or not reason.strip():
+                raise ValueError("reason must be a non-empty string")
+            reason = reason.strip()
+            stockChangeMilli = -quantityMilli if movementType == "outbound" else quantityMilli
+        lotCode, newLotExpiryDate = _resolveLot(connection, itemRow, movementType, fields)
+        if itemRow["category"] in lotControlledCategories and lotCode is None:
+            raise BusinessRuleError(f"A lot is required for {itemRow['category']} items")
+        if lotCode is not None and movementType != "inbound":
+            lotExpiryDate = connection.execute(
+                "SELECT expiryDate FROM inventoryLots WHERE lotCode = ?", (lotCode,)
+            ).fetchone()["expiryDate"]
+            if isLotExpired(lotExpiryDate, moment):
+                if movementType == "outbound":
+                    raise BusinessRuleError("An expired lot does not admit outbound movements")
+                if reason != "waste":
+                    raise BusinessRuleError("An expired lot only admits waste adjustments")
+        if stockChangeMilli < 0 and lotCode is not None:
+            lotStockMilli = calculateStock(connection, itemId=itemId, groupByLot=True).get((itemId, lotCode), 0)
+            if lotStockMilli + stockChangeMilli < 0:
+                raise BusinessRuleError("Not enough stock in the lot for this movement")
+        if stockChangeMilli < 0 and calculateStock(connection, itemId=itemId)[itemId] + stockChangeMilli < 0:
+            raise BusinessRuleError("Not enough stock for this movement")
+
+        movementId = generateId()
+        createdAt = formatUtcTimestamp(moment)
+        if newLotExpiryDate is not None:
+            connection.execute(
+                "INSERT INTO inventoryLots (lotCode, itemId, expiryDate, receivedAt) VALUES (?, ?, ?, ?)",
+                (lotCode, itemId, newLotExpiryDate, createdAt),
+            )
+        connection.execute(
+            """
+            INSERT INTO stockMovements (id, itemId, lotCode, movementType, quantityMilli, reason, createdAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (movementId, itemId, lotCode, movementType, quantityMilli, reason, createdAt),
+        )
+        stockMilli = calculateStock(connection, itemId=itemId)[itemId]
+        return {
+            "id": movementId,
+            "itemId": itemId,
+            "movementType": movementType,
+            "quantity": formatQuantity(quantityMilli, unitOfMeasure),
+            "reason": reason,
+            "lotCode": lotCode,
+            "createdAt": createdAt,
+            "stock": formatQuantity(stockMilli, unitOfMeasure),
+        }
+
+
+def getStockReport(connection: sqlite3.Connection, itemId: str, now: datetime | None = None) -> dict:
+    moment = now or utcNow()
+    row = _fetchItemRow(connection, itemId)
+    unitOfMeasure = row["unitOfMeasure"]
+    stockMilli = calculateStock(connection, itemId=itemId)[itemId]
+
+    totals = {
+        (record["movementType"], record["reason"]): record["total"]
+        for record in connection.execute(
+            """
+            SELECT movementType, CASE movementType WHEN 'adjustment' THEN reason ELSE '' END AS reason,
+                   SUM(quantityMilli) AS total
+            FROM stockMovements WHERE itemId = ? GROUP BY movementType, 2
+            """,
+            (itemId,),
+        )
+    }
+    lotStock = calculateStock(connection, itemId=itemId, groupByLot=True)
+    lots = []
+    for lot in connection.execute(
+        "SELECT lotCode, expiryDate FROM inventoryLots WHERE itemId = ? ORDER BY expiryDate, lotCode", (itemId,)
+    ):
+        lotStockMilli = lotStock.get((itemId, lot["lotCode"]), 0)
+        expired = isLotExpired(lot["expiryDate"], moment)
+        lots.append(
+            {
+                "lotCode": lot["lotCode"],
+                "expiryDate": lot["expiryDate"],
+                "expired": expired,
+                "stock": formatQuantity(lotStockMilli, unitOfMeasure),
+                "expiredStock": formatQuantity(lotStockMilli if expired else 0, unitOfMeasure),
+            }
+        )
+    return {
+        "itemId": itemId,
+        "unitOfMeasure": unitOfMeasure,
+        "stock": formatQuantity(stockMilli, unitOfMeasure),
+        "reorderPoint": formatQuantity(row["reorderPointMilli"], unitOfMeasure),
+        "needsReorder": stockMilli <= row["reorderPointMilli"],
+        "totalInbound": formatQuantity(totals.get(("inbound", ""), 0), unitOfMeasure),
+        "totalOutbound": formatQuantity(totals.get(("outbound", ""), 0), unitOfMeasure),
+        "adjustments": [
+            {
+                "reason": reason,
+                "total": formatQuantity(totals.get(("adjustment", reason), 0), unitOfMeasure),
+            }
+            for reason in catalogIds("adjustmentReasons")
+        ],
+        "lots": lots,
+    }
+
+
+def getReorderSignal(connection: sqlite3.Connection, locationId: str) -> list[dict]:
+    if not isinstance(locationId, str) or locationId not in catalogIds("locations"):
+        raise LookupError("Location not found")
+    stockByItem = calculateStock(connection, locationId=locationId)
+    rows = connection.execute(
+        "SELECT * FROM inventoryItems WHERE locationId = ? ORDER BY name, id", (locationId,)
+    ).fetchall()
+    return [
+        {
+            "itemId": row["id"],
+            "name": row["name"],
+            "unitOfMeasure": row["unitOfMeasure"],
+            "stock": formatQuantity(stockByItem[row["id"]], row["unitOfMeasure"]),
+            "reorderPoint": formatQuantity(row["reorderPointMilli"], row["unitOfMeasure"]),
+        }
+        for row in rows
+        if stockByItem[row["id"]] <= row["reorderPointMilli"]
+    ]

@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from services.api.catalogs import catalogs
+from services.api.catalogs import catalogs, inventoryCatalogs
 from services.api.database import createConnection, initializeDatabase
 from services.api.incidents import (
     changeIncidentStatus,
@@ -20,6 +20,17 @@ from services.api.incidents import (
     listIncidents,
     reassignIncidentArea,
     registerIncident,
+)
+from services.api.inventory import (
+    BusinessRuleError,
+    createItem,
+    deleteItem,
+    getItem,
+    getReorderSignal,
+    getStockReport,
+    listItems,
+    registerMovement,
+    updateItem,
 )
 from services.api.models import formatUtcTimestamp
 
@@ -81,17 +92,22 @@ class IncidentRequestHandler(BaseHTTPRequestHandler):
         self._methodNotAllowed()
 
     def do_DELETE(self) -> None:
-        self._methodNotAllowed()
+        self._handleRequest("DELETE")
 
     def _handleRequest(self, method: str) -> None:
         requestPath = urlsplit(self.path)
         if requestPath.path.startswith("/api/"):
+            if method == "DELETE" and not requestPath.path.startswith("/api/inventory/"):
+                self._methodNotAllowed()
+                return
             try:
                 self._dispatchAPI(method, requestPath.path, requestPath.query)
             except APIRequestError as error:
                 self._sendJson(error.statusCode, {"error": str(error)})
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
                 self._sendJson(400, {"error": str(error)})
+            except BusinessRuleError as error:
+                self._sendJson(409, {"error": str(error)})
             except LookupError as error:
                 self._sendJson(404, {"error": str(error)})
             except sqlite3.Error:
@@ -105,6 +121,10 @@ class IncidentRequestHandler(BaseHTTPRequestHandler):
         self._serveStaticFile(requestPath.path)
 
     def _dispatchAPI(self, method: str, requestPath: str, query: str) -> None:
+        if requestPath.startswith("/api/inventory/"):
+            self._dispatchInventoryAPI(method, requestPath, query)
+            return
+
         if method == "GET" and requestPath == "/api/catalogs":
             self._sendJson(200, catalogs)
             return
@@ -186,6 +206,79 @@ class IncidentRequestHandler(BaseHTTPRequestHandler):
                     payload["author"],
                 )
             self._sendJson(200, incident)
+            return
+
+        raise APIRequestError(404, "API route not found")
+
+    def _dispatchInventoryAPI(self, method: str, requestPath: str, query: str) -> None:
+        if method == "GET" and requestPath == "/api/inventory/catalogs":
+            self._sendJson(200, inventoryCatalogs)
+            return
+
+        if requestPath == "/api/inventory/items":
+            if method == "GET":
+                queryValues = parse_qs(query, keep_blank_values=True, strict_parsing=False)
+                if set(queryValues) - {"locationId"}:
+                    raise APIRequestError(400, "Unsupported inventory filter")
+                if "locationId" in queryValues and len(queryValues["locationId"]) != 1:
+                    raise APIRequestError(400, "locationId must be provided once")
+                locationId = queryValues["locationId"][0] if "locationId" in queryValues else None
+                with _databaseConnection(self.server.databasePath) as connection:
+                    items = listItems(connection, locationId)
+                self._sendJson(200, items)
+                return
+            if method == "POST":
+                payload = self._readJsonObject()
+                with _databaseConnection(self.server.databasePath) as connection:
+                    item = createItem(connection, payload)
+                self._sendJson(201, item)
+                return
+
+        itemMatch = re.fullmatch(r"/api/inventory/items/([^/]+)", requestPath)
+        if itemMatch and method in {"GET", "PATCH", "DELETE"}:
+            itemId = itemMatch.group(1)
+            if incidentIdPattern.fullmatch(itemId) is None:
+                raise APIRequestError(404, "Item not found")
+            if method == "GET":
+                with _databaseConnection(self.server.databasePath) as connection:
+                    item = getItem(connection, itemId)
+                self._sendJson(200, item)
+                return
+            if method == "PATCH":
+                payload = self._readJsonObject()
+                with _databaseConnection(self.server.databasePath) as connection:
+                    item = updateItem(connection, itemId, payload)
+                self._sendJson(200, item)
+                return
+            with _databaseConnection(self.server.databasePath) as connection:
+                deleted = deleteItem(connection, itemId)
+            self._sendJson(200, deleted)
+            return
+
+        itemActionMatch = re.fullmatch(r"/api/inventory/items/([^/]+)/(movements|report)", requestPath)
+        if itemActionMatch and (
+            (itemActionMatch.group(2) == "movements" and method == "POST")
+            or (itemActionMatch.group(2) == "report" and method == "GET")
+        ):
+            itemId = itemActionMatch.group(1)
+            if incidentIdPattern.fullmatch(itemId) is None:
+                raise APIRequestError(404, "Item not found")
+            if itemActionMatch.group(2) == "movements":
+                payload = self._readJsonObject()
+                with _databaseConnection(self.server.databasePath) as connection:
+                    movement = registerMovement(connection, itemId, payload)
+                self._sendJson(201, movement)
+                return
+            with _databaseConnection(self.server.databasePath) as connection:
+                report = getStockReport(connection, itemId)
+            self._sendJson(200, report)
+            return
+
+        reorderMatch = re.fullmatch(r"/api/inventory/locations/([^/]+)/reorder", requestPath)
+        if reorderMatch and method == "GET":
+            with _databaseConnection(self.server.databasePath) as connection:
+                signal = getReorderSignal(connection, reorderMatch.group(1))
+            self._sendJson(200, signal)
             return
 
         raise APIRequestError(404, "API route not found")

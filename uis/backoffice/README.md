@@ -10,6 +10,17 @@ Framework-free HTML, CSS, and JavaScript interface for Brasaland's incident mana
 - Change status or reassign an area while recording the author.
 - View open incident counts by severity.
 
+## Inventory
+
+The `/inventory.html` page manages inventory by location within the same application:
+
+- Create, edit, and deactivate items; stock is always calculated from movements and is never edited directly.
+- Register inbound, outbound, and adjustment movements, with API validation for lots and expiry dates.
+- View stock, reorder point, inbound and outbound totals, adjustments split into waste, theft, and count correction, and lot details.
+- View the reorder signal by location and identify expired stock together with its lot codes.
+
+The interface files are `inventory.html` and `inventory.js`; they are served from the same origin as the API. The inventory view is linked from the top navigation.
+
 ## Run and check
 
 From the repository root:

@@ -2,7 +2,7 @@
 
 > Se actualiza en cada commit, al menos "Hecho", "En curso" y "Siguiente".
 
-## Hecho
+## Hecho (gestor de incidencias, histórico)
 - Paso 01: arranque. Creados `AGENTS.md`, `.agents/rules/` (regla 00) y `memory-bank/`.
 - Paso 02: resumen inicial guardado en `memory-bank/registro/resumen-inicial-agente.md`.
 - Paso 03: entorno revisado; hallazgos en `memory-bank/registro/hallazgos-entorno.md`.
@@ -25,11 +25,49 @@
 - Paso 19a: plan versión 2 aprobado para `http.server`, sin FastAPI ni dependencias; commit `12cfc19`.
 - Paso 19b: API JSON y backoffice estático implementados y verificados; 35 pruebas pasan.
 
+## Hecho (gestor de inventario, SDD)
+- Paso 01: arranque del encargo. Encargo anterior archivado en `registro/encargo-incidencias.md`, nuevo `encargo.md`, `AGENTS.md` y `memory-bank/README.md` actualizados; commit `2dd43a5`.
+- Paso 02: regla `05-desarrollo-guiado-por-spec` creada y `04-nombres-camel-case` ampliada con los valores de catálogo del briefing; commit `9208abc`.
+- Paso 03: `specs/inventory-manager/spec.md` v1.0 (INV-001–INV-066) aprobado con P-01–P-08 validadas; commit `464b60c`.
+- Paso 04: `specs/inventory-manager/plan.md` v1.0 (PD-01–PD-16) aprobado el 2026-10-28; commit `e739c57`.
+- Paso 05: `specs/inventory-manager/tasks.md` v1.0 (T-01–T-29) aprobado el 2026-10-28; commit `2673fd5`.
+- Paso 06, T-01: catálogos del inventario (`inventoryCatalogs`); 39 pruebas pasan; commit `8333ab2`.
+- Paso 06, T-02: `parseQuantity` y `formatQuantity` en `services/api/inventory.py`; 44 pruebas pasan; commit `0a71518`.
+- Paso 06, T-03: tablas `inventoryItems` e `inventoryLots` en `initializeDatabase`; 49 pruebas pasan; commit `806c8d1`.
+- Paso 06, T-04: tabla `stockMovements` con `CHECK` de signo y motivo, clave foránea compuesta y triggers de solo añadir; 57 pruebas pasan; commit `b6644dd`.
+- Paso 06, T-05: trigger de stock no negativo de artículo y lote, con `stockDeltaSql` compartido; 60 pruebas pasan; commit `e3a3374`.
+- Paso 06, T-06: trigger que impide cambiar local, categoría o unidad de un artículo con movimientos; la baja ya la impedía la clave foránea; 63 pruebas pasan; commit `37f144d`.
+- Paso 06, T-07: `calculateStock` y modelos de inventario; 68 pruebas pasan; commit `da0e7a4`.
+- Paso 06, T-08: `createItem`, `BusinessRuleError` y transacción auxiliar; 73 pruebas pasan; commit `a1bde2f`.
+- Paso 06, T-09: `updateItem`; 80 pruebas pasan; commit `4ba0ab7`.
+- Paso 06, T-10: `deleteItem`; 83 pruebas pasan; commit `891ea51`.
+- Paso 06, T-11: `getItem` y `listItems`; 89 pruebas pasan; commit `b929193`.
+- Paso 06, T-12: `registerMovement` para entradas sin lote; 96 pruebas pasan; commit `04da6cd`.
+- Paso 06, T-13: salidas con rechazo por stock negativo; 102 pruebas pasan; commit `ce8f7ae`.
+- Paso 06, T-14: ajustes con motivo; 108 pruebas pasan; commit `6209939`.
+- Paso 06, T-15: pruebas de concurrencia con hilos sobre un archivo; 110 pruebas pasan; commit `2f6895a`.
+- Paso 06, T-16: lote obligatorio en `meat` y `produce`; 113 pruebas pasan; commit `cc77f44`.
+- Paso 06, T-17: entradas con lote (apertura, suma y rechazos); 120 pruebas pasan; commit `bf1c538`.
+- Paso 06, T-18: salidas y ajustes sobre un lote; 125 pruebas pasan; commit `7f79857`.
+- Paso 06, T-19: reglas de lotes caducados; 131 pruebas pasan; commit `3f667ba`.
+- Paso 06, T-20: `getStockReport` y `expiredLots` en la vista del artículo; 139 pruebas pasan; commit `3195fed`.
+- Paso 06, T-21: `getReorderSignal`; 144 pruebas pasan; commit `a03d510`.
+- Paso 06, T-22: `inventoryseed.py` con los 16 artículos y sus movimientos; 149 pruebas pasan; commit `d6c83fc`.
+- Paso 06, T-23: lote caducado de *Cilantro* en la semilla; 153 pruebas pasan; commit `4c1bf10`.
+- Paso 06, T-24: semilla atómica, rechazo con artículos y comando `python -m services.api.inventoryseed`; 158 pruebas pasan; commit `a69fbe6`.
+- Paso 06, T-25: rutas HTTP de catálogos y artículos; 169 pruebas pasan; commit `cb1db28`.
+- Paso 06, T-26: rutas de movimientos, informe y reorden, y guías del servicio; 178 pruebas pasan; commit `1d31c09`.
+- Paso 06, T-27: página `inventory.html` con alta, edición, baja y listado por local; 181 pruebas pasan; commit `066c3ea`.
+- Paso 06, T-28: formulario de movimientos con entrada, salida y ajuste, campos contextuales de motivo/lote/caducidad y rechazo del servidor visible; 185 pruebas pasan; commit `e295b29`.
+- Paso 06, T-29: informe por artículo, señal de reorden por local, detalle de lotes caducados y guías bilingües; 188 pruebas pasan; commit `feat(inventory): mostrar informes de stock en el backoffice`.
+- Paso 07: suite completa (188 pruebas OK), recorrido HTTP con semilla y trazabilidad INV-001–INV-066 documentados en `registro/verificacion-inventario.md` y `registro/trazabilidad-inventario.md`; commit `2b6a7f5`.
+- Paso 09: memoria de cierre y descripción del PR preparadas; validado historial de 35 commits desde `6260bb2`, 29 commits de implementación con `T-*` e `INV-*`, y sin cambios de dependencias. Auditoría detectó que el commit `2b6a7f5` carece del cuerpo `Paso:`/`Checklist:` exigido por la regla 00; se mantiene sin reescribir y se señala para revisión.
+
 ## En curso
-- Paso 19c: auditoría C01–C15 aprobada y descripción del PR redactada. El usuario autorizó commit, push y PR; falta ejecutar la publicación.
+- Paso 09 del inventario: revisión del cierre y autorización para commit/publicación.
 
 ## Siguiente
-- Tras abrir el PR contra `main`, esperar revisión; no hacer merge.
+- Con autorización del usuario: commit del Paso 09, push de `feature/inventory-manager` y apertura del PR contra `main`; no hacer merge.
 
 ## Estado del proyecto
 - El repositorio contiene la plantilla monorepo, configuración de devcontainer, reglas para agentes, banco de memoria, ejemplos y metadata de un paquete TypeScript compartido.
@@ -47,6 +85,10 @@
 | 2026-10-27 | 12 | Los IDs de incidencias y eventos usan UUID v4 en texto; los catálogos aprobados y seis áreas asignables se aplican también en SQLite; historial append-only protegido por triggers |
 | 2026-10-27 | 19a | Sustituir FastAPI por `http.server` de biblioteca estándar; no añadir dependencias ni acceder a `uv.lock`; servir API JSON y backoffice estático desde el mismo origen |
 | 2026-10-27 | 19b | API y backoffice se implementan y prueban con biblioteca estándar; sin autenticación, el autor se introduce manualmente y el servidor escucha en loopback por defecto |
+| 2026-10-28 | 01 (inventario) | `company-BRIEFING.md` no existe: el usuario decide usar `CONTEXT.md` como briefing y reconciliar los huecos |
+| 2026-10-28 | 03 (inventario) | Spec v1.0 aprobado: P-01 sin campos extra; P-02–P-07 según la propuesta del agente; P-08, solo los 4 locales del encargo |
+| 2026-10-28 | 01 (inventario) | El usuario da por válida `6260bb2` (merge del PR #1) como base. En la auditoría del Paso 09 se comprobó que `origin/main` y `origin/feature/inventory-manager` existen y apuntan a esa base; no hay `main` local |
 
 ## Pendientes
-- Esperar revisión del PR; no hacer merge.
+- `CONTEXT.md` (Brasaland, 14 locales) no contiene el dominio del inventario: ni las entidades, ni el §3.1, §4 y §7 que cita el encargo, ni los cuatro locales (`laArepita`, `queChille`, `theBigSauce`, `chilliBeans`). Se resuelve en el Paso 03: lo que no esté en `CONTEXT.md` ni en el §4 del encargo se marca `pendiente` en el spec.
+- Las referencias del encargo a «§2/§3.1/§4/§7 del briefing» no se pueden verificar contra `CONTEXT.md`.

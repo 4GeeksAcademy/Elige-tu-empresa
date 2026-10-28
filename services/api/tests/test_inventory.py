@@ -1,0 +1,1634 @@
+import sqlite3
+import tempfile
+import threading
+import unittest
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from services.api.catalogs import catalogIds, catalogs, inventoryCatalogs
+from services.api.database import createConnection, initializeDatabase, stockDeltaSql
+from services.api.inventory import (
+    BusinessRuleError,
+    calculateStock,
+    createItem,
+    deleteItem,
+    formatQuantity,
+    getItem,
+    getReorderSignal,
+    getStockReport,
+    isLotExpired,
+    listItems,
+    parseQuantity,
+    registerMovement,
+    updateItem,
+)
+from services.api.models import formatUtcTimestamp, generateId, isUuid4, parseUtcTimestamp, utcNow
+
+
+class InventoryCatalogTests(unittest.TestCase):
+    def testInv002InventoryCatalogsHaveApprovedValues(self) -> None:
+        self.assertEqual(catalogIds("units"), ("kg", "g", "l", "ml", "unit"))
+        self.assertEqual(
+            catalogIds("categories"),
+            (
+                "meat",
+                "produce",
+                "sauces_condiments",
+                "beverages",
+                "packaging",
+                "cleaning_supplies",
+            ),
+        )
+        self.assertEqual(
+            catalogIds("locations"),
+            ("laArepita", "queChille", "theBigSauce", "chilliBeans"),
+        )
+        self.assertEqual(
+            tuple(entry.label for entry in inventoryCatalogs["locations"]),
+            (
+                "La Arepita (Colombia)",
+                "QueChille (Colombia)",
+                "The BigSauce (Estados Unidos, Florida)",
+                "ChilliBeans (Estados Unidos, Florida)",
+            ),
+        )
+
+    def testInv015MovementTypesAreInboundOutboundAdjustment(self) -> None:
+        self.assertEqual(
+            catalogIds("movementTypes"),
+            ("inbound", "outbound", "adjustment"),
+        )
+
+    def testInv022AdjustmentReasonsAreWasteTheftCountCorrection(self) -> None:
+        self.assertEqual(
+            catalogIds("adjustmentReasons"),
+            ("waste", "theft", "count_correction"),
+        )
+
+    def testInv002IncidentCatalogsAreUnchanged(self) -> None:
+        self.assertEqual(
+            set(catalogs),
+            {"channels", "incidentTypes", "severities", "responsibleAreas", "statuses"},
+        )
+        self.assertEqual(catalogIds("channels"), ("whatsapp", "telefono", "email"))
+        self.assertTrue(set(catalogs).isdisjoint(inventoryCatalogs))
+
+
+class QuantityTests(unittest.TestCase):
+    def testInv020AcceptsThreeDecimalsInKgAndL(self) -> None:
+        self.assertEqual(parseQuantity("12.500", "kg"), 12500)
+        self.assertEqual(parseQuantity("12.5", "kg"), 12500)
+        self.assertEqual(parseQuantity("12", "l"), 12000)
+        self.assertEqual(parseQuantity("0.001", "kg"), 1)
+        self.assertEqual(parseQuantity("-0.250", "l"), -250)
+        self.assertEqual(parseQuantity("12", "g"), 12000)
+        self.assertEqual(parseQuantity("48", "unit"), 48000)
+        self.assertEqual(formatQuantity(12500, "kg"), "12.500")
+        self.assertEqual(formatQuantity(-250, "l"), "-0.250")
+        self.assertEqual(formatQuantity(0, "kg"), "0.000")
+        self.assertEqual(formatQuantity(12000, "unit"), "12")
+        self.assertEqual(formatQuantity(-500000, "ml"), "-500")
+
+    def testInv020RejectsMoreDecimalsThanUnitAllows(self) -> None:
+        for text, unit in (
+            ("0.0001", "kg"),
+            ("1.2345", "l"),
+            ("12.5", "g"),
+            ("12.0", "ml"),
+            ("1.5", "unit"),
+        ):
+            with self.subTest(text=text, unit=unit):
+                with self.assertRaisesRegex(ValueError, "decimal"):
+                    parseQuantity(text, unit)
+        with self.assertRaisesRegex(ValueError, "decimal"):
+            formatQuantity(12500, "unit")
+
+    def testInv020RejectsJsonNumbers(self) -> None:
+        for value in (12, 12.5, True, None, [1]):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "string"):
+                    parseQuantity(value, "kg")
+
+    def testInv020RejectsMalformedText(self) -> None:
+        for text in ("", " 12", "12 ", "+1", ".5", "5.", "1e3", "1,5", "abc", "--1", "0x10"):
+            with self.subTest(text=text):
+                with self.assertRaises(ValueError):
+                    parseQuantity(text, "kg")
+        with self.assertRaisesRegex(ValueError, "Unknown unit"):
+            parseQuantity("1", "lb")
+
+    def testInv003RejectsReorderPointWithTooManyDecimals(self) -> None:
+        with self.assertRaisesRegex(ValueError, "decimal"):
+            parseQuantity("2.5", "unit")
+        with self.assertRaisesRegex(ValueError, "decimal"):
+            parseQuantity("2.0005", "kg")
+        self.assertEqual(parseQuantity("0", "unit"), 0)
+
+
+class InventorySchemaTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        self.connection = createConnection(":memory:")
+        initializeDatabase(self.connection)
+        self.addCleanup(self.connection.close)
+
+    def insertItem(self, **overrides: object) -> str:
+        values = {
+            "id": generateId(),
+            "name": "Cilantro",
+            "locationId": "queChille",
+            "category": "produce",
+            "unitOfMeasure": "kg",
+            "reorderPointMilli": 2000,
+            "createdAt": formatUtcTimestamp(utcNow()),
+        }
+        values.update(overrides)
+        self.connection.execute(
+            """
+            INSERT INTO inventoryItems (
+                id, name, locationId, category, unitOfMeasure, reorderPointMilli, createdAt
+            ) VALUES (:id, :name, :locationId, :category, :unitOfMeasure, :reorderPointMilli, :createdAt)
+            """,
+            values,
+        )
+        self.connection.commit()
+        return values["id"]
+
+    def insertLot(self, itemId: str, **overrides: object) -> str:
+        values = {
+            "lotCode": "lotA",
+            "itemId": itemId,
+            "expiryDate": "2026-12-01",
+            "receivedAt": formatUtcTimestamp(utcNow()),
+        }
+        values.update(overrides)
+        self.connection.execute(
+            """
+            INSERT INTO inventoryLots (lotCode, itemId, expiryDate, receivedAt)
+            VALUES (:lotCode, :itemId, :expiryDate, :receivedAt)
+            """,
+            values,
+        )
+        self.connection.commit()
+        return values["lotCode"]
+
+    def insertMovement(self, itemId: str, **overrides: object) -> str:
+        values = {
+            "id": generateId(),
+            "itemId": itemId,
+            "lotCode": None,
+            "movementType": "inbound",
+            "quantityMilli": 5000,
+            "reason": "purchase",
+            "createdAt": formatUtcTimestamp(utcNow()),
+        }
+        values.update(overrides)
+        self.connection.execute(
+            """
+            INSERT INTO stockMovements (
+                id, itemId, lotCode, movementType, quantityMilli, reason, createdAt
+            ) VALUES (:id, :itemId, :lotCode, :movementType, :quantityMilli, :reason, :createdAt)
+            """,
+            values,
+        )
+        self.connection.commit()
+        return values["id"]
+
+
+class InventoryItemSchemaTests(InventorySchemaTestCase):
+    def testInv037SchemaHasNoStockColumn(self) -> None:
+        for tableName in ("inventoryItems", "inventoryLots"):
+            columns = {row["name"].lower() for row in self.connection.execute(f"PRAGMA table_info({tableName})")}
+            with self.subTest(tableName=tableName):
+                self.assertTrue(columns)
+                self.assertFalse(any("stock" in name or "quantity" in name for name in columns))
+
+    def testInv002SqlRejectsValuesOutsideCatalogs(self) -> None:
+        self.insertItem()
+        for overrides in (
+            {"locationId": "unknown"},
+            {"category": "unknown"},
+            {"unitOfMeasure": "lb"},
+            {"name": "   "},
+            {"id": "not-a-uuid"},
+        ):
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.insertItem(**overrides)
+
+    def testInv003SqlRejectsNegativeReorderPoint(self) -> None:
+        self.insertItem(reorderPointMilli=0)
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insertItem(reorderPointMilli=-1)
+
+
+class InventoryLotSchemaTests(InventorySchemaTestCase):
+    def testInv031SqlRejectsLotExpiryDateUpdate(self) -> None:
+        itemId = self.insertItem()
+        self.insertLot(itemId)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
+            self.connection.execute("UPDATE inventoryLots SET expiryDate = '2027-01-01'")
+
+    def testInv030SqlRejectsLotDelete(self) -> None:
+        itemId = self.insertItem()
+        self.insertLot(itemId)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
+            self.connection.execute("DELETE FROM inventoryLots")
+
+
+class StockMovementSchemaTests(InventorySchemaTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.itemId = self.insertItem()
+
+    def testInv011SqlStoresItemTypeQuantityReasonAndCreatedAt(self) -> None:
+        createdAt = formatUtcTimestamp(utcNow())
+        movementId = self.insertMovement(
+            self.itemId,
+            movementType="inbound",
+            quantityMilli=12500,
+            reason="weekly delivery",
+            createdAt=createdAt,
+        )
+        row = self.connection.execute("SELECT * FROM stockMovements WHERE id = ?", (movementId,)).fetchone()
+        self.assertEqual(
+            (row["itemId"], row["movementType"], row["quantityMilli"], row["reason"], row["createdAt"]),
+            (self.itemId, "inbound", 12500, "weekly delivery", createdAt),
+        )
+        self.assertIsNone(row["lotCode"])
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insertMovement(self.itemId, movementType="transfer")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insertMovement(generateId())
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insertMovement(self.itemId, createdAt=None)
+
+    def testInv017SqlRejectsNonPositiveInboundAndOutbound(self) -> None:
+        for movementType in ("inbound", "outbound"):
+            for quantityMilli in (0, -1000):
+                with self.subTest(movementType=movementType, quantityMilli=quantityMilli):
+                    with self.assertRaises(sqlite3.IntegrityError):
+                        self.insertMovement(self.itemId, movementType=movementType, quantityMilli=quantityMilli)
+
+    def testInv018SqlRejectsZeroAdjustment(self) -> None:
+        for reason in ("waste", "theft", "count_correction"):
+            with self.subTest(reason=reason):
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=0, reason=reason)
+
+    def testInv019SqlRejectsPositiveWasteAndTheft(self) -> None:
+        for reason in ("waste", "theft"):
+            with self.subTest(reason=reason):
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=1000, reason=reason)
+        self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=1000, reason="count_correction")
+        self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=-1000, reason="count_correction")
+
+    def testInv021SqlRejectsBlankReasonOnInboundAndOutbound(self) -> None:
+        for movementType in ("inbound", "outbound"):
+            for reason in ("", "   "):
+                with self.subTest(movementType=movementType, reason=reason):
+                    with self.assertRaises(sqlite3.IntegrityError):
+                        self.insertMovement(self.itemId, movementType=movementType, reason=reason)
+
+    def testInv022SqlRejectsAdjustmentReasonOutsideCatalog(self) -> None:
+        for reason in ("", "purchase", "Waste"):
+            with self.subTest(reason=reason):
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=-1000, reason=reason)
+
+    def testInv033SqlRejectsLotOfAnotherItem(self) -> None:
+        otherItemId = self.insertItem(name="Cebolla cabezona")
+        self.insertLot(self.itemId, lotCode="lotA")
+        self.insertMovement(self.itemId, lotCode="lotA")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insertMovement(otherItemId, lotCode="lotA")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insertMovement(self.itemId, lotCode="unknownLot")
+
+    def testInv039SqlRejectsMovementUpdateAndDelete(self) -> None:
+        movementId = self.insertMovement(self.itemId)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
+            self.connection.execute("UPDATE stockMovements SET quantityMilli = 1 WHERE id = ?", (movementId,))
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "immutable"):
+            self.connection.execute("DELETE FROM stockMovements WHERE id = ?", (movementId,))
+
+
+class StockFloorTriggerTests(InventorySchemaTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.itemId = self.insertItem()
+
+    def testInv023SqlRejectsOutboundBelowZero(self) -> None:
+        self.insertMovement(self.itemId, quantityMilli=5000)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "negative"):
+            self.insertMovement(self.itemId, movementType="outbound", quantityMilli=5001, reason="sale")
+        self.insertMovement(self.itemId, movementType="outbound", quantityMilli=5000, reason="sale")
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "negative"):
+            self.insertMovement(self.itemId, movementType="outbound", quantityMilli=1, reason="sale")
+        self.assertEqual(self.connection.execute("SELECT COUNT(*) FROM stockMovements").fetchone()[0], 2)
+
+    def testInv024SqlRejectsAdjustmentBelowZero(self) -> None:
+        self.insertMovement(self.itemId, quantityMilli=1000)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "negative"):
+            self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=-1001, reason="waste")
+        self.insertMovement(self.itemId, movementType="adjustment", quantityMilli=-1000, reason="waste")
+        self.assertEqual(self.connection.execute("SELECT COUNT(*) FROM stockMovements").fetchone()[0], 2)
+
+    def testInv034SqlRejectsLotBelowZero(self) -> None:
+        self.insertLot(self.itemId, lotCode="lotA")
+        self.insertLot(self.itemId, lotCode="lotB")
+        self.insertMovement(self.itemId, lotCode="lotA", quantityMilli=3000)
+        self.insertMovement(self.itemId, lotCode="lotB", quantityMilli=3000)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "Lot stock"):
+            self.insertMovement(self.itemId, lotCode="lotA", movementType="outbound", quantityMilli=3001, reason="sale")
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "Lot stock"):
+            self.insertMovement(
+                self.itemId, lotCode="lotB", movementType="adjustment", quantityMilli=-3001, reason="waste"
+            )
+        self.insertMovement(self.itemId, lotCode="lotA", movementType="outbound", quantityMilli=3000, reason="sale")
+
+
+class ItemWithMovementsTriggerTests(InventorySchemaTestCase):
+    def testInv006SqlRejectsStructuralChangeWithMovements(self) -> None:
+        itemId = self.insertItem()
+        self.insertMovement(itemId)
+        for column, value in (
+            ("locationId", "laArepita"),
+            ("category", "beverages"),
+            ("unitOfMeasure", "l"),
+        ):
+            with self.subTest(column=column):
+                with self.assertRaisesRegex(sqlite3.IntegrityError, "movements"):
+                    self.connection.execute(f"UPDATE inventoryItems SET {column} = ? WHERE id = ?", (value, itemId))
+        self.connection.execute(
+            "UPDATE inventoryItems SET name = 'Cilantro fresco', reorderPointMilli = 3000, locationId = 'queChille' WHERE id = ?",
+            (itemId,),
+        )
+        row = self.connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (itemId,)).fetchone()
+        self.assertEqual((row["name"], row["reorderPointMilli"], row["locationId"]), ("Cilantro fresco", 3000, "queChille"))
+
+    def testInv006SqlAllowsStructuralChangeWithoutMovements(self) -> None:
+        itemId = self.insertItem()
+        self.connection.execute(
+            "UPDATE inventoryItems SET locationId = 'laArepita', category = 'beverages', unitOfMeasure = 'l' WHERE id = ?",
+            (itemId,),
+        )
+        row = self.connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (itemId,)).fetchone()
+        self.assertEqual((row["locationId"], row["category"], row["unitOfMeasure"]), ("laArepita", "beverages", "l"))
+
+    def testInv008SqlRejectsDeleteOfItemWithMovements(self) -> None:
+        itemId = self.insertItem()
+        emptyItemId = self.insertItem(name="Desengrasante")
+        self.insertMovement(itemId)
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute("DELETE FROM inventoryItems WHERE id = ?", (itemId,))
+        self.connection.execute("DELETE FROM inventoryItems WHERE id = ?", (emptyItemId,))
+        remaining = {row["id"] for row in self.connection.execute("SELECT id FROM inventoryItems")}
+        self.assertEqual(remaining, {itemId})
+        self.assertEqual(self.connection.execute("SELECT COUNT(*) FROM stockMovements").fetchone()[0], 1)
+
+
+class CalculateStockTests(InventorySchemaTestCase):
+    def testInv036StockIsSumOfSignedMovements(self) -> None:
+        itemId = self.insertItem()
+        self.insertMovement(itemId, quantityMilli=10000)
+        self.insertMovement(itemId, movementType="outbound", quantityMilli=3000, reason="sale")
+        self.insertMovement(itemId, movementType="adjustment", quantityMilli=-500, reason="waste")
+        self.insertMovement(itemId, movementType="adjustment", quantityMilli=200, reason="count_correction")
+        self.assertEqual(calculateStock(self.connection, itemId=itemId), {itemId: 6700})
+
+    def testInv036ItemWithoutMovementsHasZeroStock(self) -> None:
+        itemId = self.insertItem()
+        self.assertEqual(calculateStock(self.connection, itemId=itemId), {itemId: 0})
+        self.assertEqual(calculateStock(self.connection, locationId="queChille"), {itemId: 0})
+        self.assertEqual(calculateStock(self.connection, itemId=generateId()), {})
+        self.assertEqual(calculateStock(self.connection, locationId="laArepita"), {})
+
+    def testInv040SameIngredientInTwoLocationsHasIndependentStock(self) -> None:
+        firstItemId = self.insertItem(locationId="queChille")
+        secondItemId = self.insertItem(locationId="chilliBeans")
+        self.insertMovement(firstItemId, quantityMilli=8000)
+        self.insertMovement(secondItemId, quantityMilli=3000)
+        self.insertMovement(secondItemId, movementType="outbound", quantityMilli=1000, reason="sale")
+        self.assertEqual(calculateStock(self.connection, locationId="queChille"), {firstItemId: 8000})
+        self.assertEqual(calculateStock(self.connection, locationId="chilliBeans"), {secondItemId: 2000})
+        self.assertEqual(
+            calculateStock(self.connection),
+            {firstItemId: 8000, secondItemId: 2000},
+        )
+
+    def testInv035LotStockUsesOnlyLotMovements(self) -> None:
+        itemId = self.insertItem()
+        otherItemId = self.insertItem(name="Cebolla cabezona")
+        self.insertLot(itemId, lotCode="lotA")
+        self.insertLot(itemId, lotCode="lotB")
+        self.insertLot(otherItemId, lotCode="lotC")
+        self.insertMovement(itemId, lotCode="lotA", quantityMilli=5000)
+        self.insertMovement(itemId, lotCode="lotA", movementType="outbound", quantityMilli=2000, reason="sale")
+        self.insertMovement(itemId, lotCode="lotB", quantityMilli=1500)
+        self.insertMovement(itemId, quantityMilli=700)
+        self.insertMovement(otherItemId, lotCode="lotC", quantityMilli=9000)
+        self.assertEqual(
+            calculateStock(self.connection, itemId=itemId, groupByLot=True),
+            {(itemId, "lotA"): 3000, (itemId, "lotB"): 1500},
+        )
+        self.assertEqual(calculateStock(self.connection, itemId=itemId), {itemId: 5200})
+        self.assertEqual(
+            calculateStock(self.connection, locationId="queChille", groupByLot=True),
+            {(itemId, "lotA"): 3000, (itemId, "lotB"): 1500, (otherItemId, "lotC"): 9000},
+        )
+
+    def testInv036TriggerAndCalculateStockShareSignRule(self) -> None:
+        triggerSql = self.connection.execute(
+            "SELECT sql FROM sqlite_master WHERE name = 'stockMovements_preventNegativeStock'"
+        ).fetchone()["sql"]
+        self.assertIn(stockDeltaSql(), triggerSql)
+        self.assertIn(stockDeltaSql("NEW."), triggerSql)
+        itemId = self.insertItem()
+        self.insertMovement(itemId, quantityMilli=9000)
+        self.insertMovement(itemId, movementType="adjustment", quantityMilli=-1500, reason="theft")
+        availableStock = calculateStock(self.connection, itemId=itemId)[itemId]
+        self.assertEqual(availableStock, 7500)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "negative"):
+            self.insertMovement(itemId, movementType="outbound", quantityMilli=availableStock + 1, reason="sale")
+        self.insertMovement(itemId, movementType="outbound", quantityMilli=availableStock, reason="sale")
+        self.assertEqual(calculateStock(self.connection, itemId=itemId), {itemId: 0})
+
+
+class CreateItemTests(InventorySchemaTestCase):
+    fixedNow = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+    def validFields(self, **overrides: object) -> dict:
+        fields = {
+            "name": "Cilantro",
+            "locationId": "queChille",
+            "category": "produce",
+            "unitOfMeasure": "kg",
+            "reorderPoint": "2",
+        }
+        fields.update(overrides)
+        return fields
+
+    def itemCount(self) -> int:
+        return self.connection.execute("SELECT COUNT(*) FROM inventoryItems").fetchone()[0]
+
+    def testInv001CreatesItemWithUniqueIdAndZeroStock(self) -> None:
+        first = createItem(self.connection, self.validFields(), now=self.fixedNow)
+        second = createItem(
+            self.connection,
+            self.validFields(name="Refresco de cola", category="beverages", unitOfMeasure="unit", reorderPoint="48"),
+            now=self.fixedNow,
+        )
+        self.assertTrue(isUuid4(first["id"]))
+        self.assertNotEqual(first["id"], second["id"])
+        self.assertEqual(
+            {key: first[key] for key in ("name", "locationId", "category", "unitOfMeasure", "reorderPoint", "stock")},
+            {
+                "name": "Cilantro",
+                "locationId": "queChille",
+                "category": "produce",
+                "unitOfMeasure": "kg",
+                "reorderPoint": "2.000",
+                "stock": "0.000",
+            },
+        )
+        self.assertEqual((second["reorderPoint"], second["stock"]), ("48", "0"))
+        self.assertEqual(first["createdAt"], formatUtcTimestamp(self.fixedNow))
+        row = self.connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (first["id"],)).fetchone()
+        self.assertEqual((row["name"], row["reorderPointMilli"]), ("Cilantro", 2000))
+        self.assertEqual(calculateStock(self.connection, itemId=first["id"]), {first["id"]: 0})
+        self.assertIs(first["needsReorder"], True)
+
+    def testInv001CreateJoinsOuterTransactionAndRollsBack(self) -> None:
+        self.connection.execute("BEGIN IMMEDIATE")
+        createItem(self.connection, self.validFields(), now=self.fixedNow)
+        self.assertTrue(self.connection.in_transaction)
+        self.connection.rollback()
+        self.assertEqual(self.itemCount(), 0)
+        createItem(self.connection, self.validFields(), now=self.fixedNow)
+        self.assertFalse(self.connection.in_transaction)
+        self.assertEqual(self.itemCount(), 1)
+
+    def testInv002RejectsBlankNameOrValuesOutsideCatalogsOnCreate(self) -> None:
+        for overrides in (
+            {"name": ""},
+            {"name": "   "},
+            {"name": 5},
+            {"locationId": "unknown"},
+            {"category": "unknown"},
+            {"unitOfMeasure": "lb"},
+            {"locationId": None},
+        ):
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(ValueError):
+                    createItem(self.connection, self.validFields(**overrides), now=self.fixedNow)
+        fields = self.validFields()
+        del fields["category"]
+        with self.assertRaisesRegex(ValueError, "Missing"):
+            createItem(self.connection, fields, now=self.fixedNow)
+        self.assertEqual(self.itemCount(), 0)
+
+    def testInv003RejectsInvalidReorderPointOnCreate(self) -> None:
+        for overrides in (
+            {"reorderPoint": "-1"},
+            {"reorderPoint": "1.0005"},
+            {"unitOfMeasure": "unit", "reorderPoint": "2.5"},
+            {"reorderPoint": 5},
+            {"reorderPoint": ""},
+        ):
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(ValueError):
+                    createItem(self.connection, self.validFields(**overrides), now=self.fixedNow)
+        created = createItem(self.connection, self.validFields(reorderPoint="0"), now=self.fixedNow)
+        self.assertEqual(created["reorderPoint"], "0.000")
+        self.assertEqual(self.itemCount(), 1)
+
+    def testInv038RejectsStockFieldOnCreate(self) -> None:
+        for fieldName in ("stock", "quantity", "stockMilli", "availableStock"):
+            with self.subTest(fieldName=fieldName):
+                with self.assertRaisesRegex(ValueError, "Unsupported"):
+                    createItem(self.connection, self.validFields(**{fieldName: "5"}), now=self.fixedNow)
+        self.assertEqual(self.itemCount(), 0)
+
+
+class UpdateItemTests(InventorySchemaTestCase):
+    fixedNow = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+    def createBaseItem(self, **overrides: object) -> dict:
+        fields = {
+            "name": "Cilantro",
+            "locationId": "queChille",
+            "category": "produce",
+            "unitOfMeasure": "kg",
+            "reorderPoint": "2",
+        }
+        fields.update(overrides)
+        return createItem(self.connection, fields, now=self.fixedNow)
+
+    def storedItem(self, itemId: str) -> dict:
+        return dict(self.connection.execute("SELECT * FROM inventoryItems WHERE id = ?", (itemId,)).fetchone())
+
+    def testInv004EditsNameAndReorderPointWithMovements(self) -> None:
+        item = self.createBaseItem()
+        self.insertMovement(item["id"], quantityMilli=4000)
+        updated = updateItem(self.connection, item["id"], {"name": " Cilantro fresco ", "reorderPoint": "3.5"})
+        self.assertEqual((updated["name"], updated["reorderPoint"], updated["stock"]), ("Cilantro fresco", "3.500", "4.000"))
+        self.assertEqual(updated["needsReorder"], False)
+        stored = self.storedItem(item["id"])
+        self.assertEqual((stored["name"], stored["reorderPointMilli"]), ("Cilantro fresco", 3500))
+
+    def testInv005EditsStructuralFieldsWithoutMovements(self) -> None:
+        item = self.createBaseItem()
+        updated = updateItem(
+            self.connection,
+            item["id"],
+            {"locationId": "laArepita", "category": "beverages", "unitOfMeasure": "l"},
+        )
+        self.assertEqual(
+            (updated["locationId"], updated["category"], updated["unitOfMeasure"], updated["reorderPoint"]),
+            ("laArepita", "beverages", "l", "2.000"),
+        )
+        self.assertEqual(self.storedItem(item["id"])["locationId"], "laArepita")
+
+    def testInv006RejectsStructuralChangeWithMovements(self) -> None:
+        item = self.createBaseItem()
+        self.insertMovement(item["id"])
+        for changes in (
+            {"locationId": "laArepita"},
+            {"category": "meat"},
+            {"unitOfMeasure": "l"},
+            {"name": "Otro nombre", "category": "meat"},
+        ):
+            with self.subTest(changes=changes):
+                with self.assertRaises(BusinessRuleError):
+                    updateItem(self.connection, item["id"], changes)
+        stored = self.storedItem(item["id"])
+        self.assertEqual((stored["name"], stored["locationId"], stored["category"], stored["unitOfMeasure"]), ("Cilantro", "queChille", "produce", "kg"))
+        repeated = updateItem(self.connection, item["id"], {"locationId": "queChille", "name": "Cilantro 2"})
+        self.assertEqual(repeated["name"], "Cilantro 2")
+
+    def testInv002RejectsInvalidValuesOnEdit(self) -> None:
+        item = self.createBaseItem()
+        for changes in (
+            {"name": ""},
+            {"name": "   "},
+            {"name": 5},
+            {"locationId": "unknown"},
+            {"category": "unknown"},
+            {"unitOfMeasure": "lb"},
+        ):
+            with self.subTest(changes=changes):
+                with self.assertRaises(ValueError):
+                    updateItem(self.connection, item["id"], changes)
+        self.assertEqual(self.storedItem(item["id"])["name"], "Cilantro")
+
+    def testInv003RejectsInvalidReorderPointOnEdit(self) -> None:
+        item = self.createBaseItem(reorderPoint="2.5")
+        for changes in (
+            {"reorderPoint": "-1"},
+            {"reorderPoint": "1.0005"},
+            {"reorderPoint": 5},
+            {"unitOfMeasure": "unit"},
+            {"unitOfMeasure": "unit", "reorderPoint": "2.5"},
+        ):
+            with self.subTest(changes=changes):
+                with self.assertRaises(ValueError):
+                    updateItem(self.connection, item["id"], changes)
+        self.assertEqual(self.storedItem(item["id"])["reorderPointMilli"], 2500)
+        converted = updateItem(self.connection, item["id"], {"unitOfMeasure": "unit", "reorderPoint": "3"})
+        self.assertEqual((converted["unitOfMeasure"], converted["reorderPoint"]), ("unit", "3"))
+
+    def testInv038RejectsStockFieldOnEdit(self) -> None:
+        item = self.createBaseItem()
+        for fieldName in ("stock", "quantity", "stockMilli", "availableStock"):
+            with self.subTest(fieldName=fieldName):
+                with self.assertRaisesRegex(ValueError, "Unsupported"):
+                    updateItem(self.connection, item["id"], {"name": "Otro", fieldName: "5"})
+        with self.assertRaisesRegex(ValueError, "No fields"):
+            updateItem(self.connection, item["id"], {})
+        self.assertEqual(self.storedItem(item["id"])["name"], "Cilantro")
+
+    def testInv009RejectsEditOfUnknownItem(self) -> None:
+        with self.assertRaises(LookupError):
+            updateItem(self.connection, generateId(), {"name": "Otro"})
+        with self.assertRaises(LookupError):
+            updateItem(self.connection, "not-a-uuid", {"name": "Otro"})
+
+
+class DeleteItemTests(InventorySchemaTestCase):
+    def testInv007DeletesItemWithoutMovements(self) -> None:
+        itemId = self.insertItem()
+        otherItemId = self.insertItem(name="Cebolla cabezona")
+        self.assertEqual(deleteItem(self.connection, itemId), {"deleted": itemId})
+        remaining = {row["id"] for row in self.connection.execute("SELECT id FROM inventoryItems")}
+        self.assertEqual(remaining, {otherItemId})
+        self.assertFalse(self.connection.in_transaction)
+
+    def testInv008RejectsDeleteWithMovementsAndKeepsThem(self) -> None:
+        itemId = self.insertItem()
+        self.insertMovement(itemId, quantityMilli=4000)
+        with self.assertRaises(BusinessRuleError):
+            deleteItem(self.connection, itemId)
+        self.assertEqual(self.connection.execute("SELECT COUNT(*) FROM inventoryItems").fetchone()[0], 1)
+        self.assertEqual(calculateStock(self.connection, itemId=itemId), {itemId: 4000})
+        self.assertFalse(self.connection.in_transaction)
+
+    def testInv009RejectsDeleteOfUnknownItem(self) -> None:
+        itemId = self.insertItem()
+        with self.assertRaises(LookupError):
+            deleteItem(self.connection, generateId())
+        with self.assertRaises(LookupError):
+            deleteItem(self.connection, "not-a-uuid")
+        self.assertEqual(self.connection.execute("SELECT COUNT(*) FROM inventoryItems").fetchone()[0], 1)
+        self.assertEqual(self.connection.execute("SELECT id FROM inventoryItems").fetchone()["id"], itemId)
+
+
+class ListItemsTests(InventorySchemaTestCase):
+    fixedNow = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+    def createBaseItem(self, **overrides: object) -> dict:
+        fields = {
+            "name": "Cilantro",
+            "locationId": "queChille",
+            "category": "produce",
+            "unitOfMeasure": "kg",
+            "reorderPoint": "2",
+        }
+        fields.update(overrides)
+        return createItem(self.connection, fields, now=self.fixedNow)
+
+    def testInv010ListsItemsWithStockAndReorderMark(self) -> None:
+        cilantro = self.createBaseItem()
+        cola = self.createBaseItem(
+            name="Refresco de cola", locationId="theBigSauce", category="beverages", unitOfMeasure="unit", reorderPoint="48"
+        )
+        self.insertMovement(cilantro["id"], quantityMilli=7500)
+        self.insertMovement(cilantro["id"], movementType="outbound", quantityMilli=1000, reason="sale")
+        self.insertMovement(cola["id"], quantityMilli=100000)
+        items = listItems(self.connection)
+        self.assertEqual([item["name"] for item in items], ["Cilantro", "Refresco de cola"])
+        byName = {item["name"]: item for item in items}
+        self.assertEqual(
+            (byName["Cilantro"]["stock"], byName["Cilantro"]["needsReorder"], byName["Cilantro"]["reorderPoint"]),
+            ("6.500", False, "2.000"),
+        )
+        self.assertEqual(
+            (byName["Refresco de cola"]["stock"], byName["Refresco de cola"]["needsReorder"]),
+            ("100", False),
+        )
+        self.assertEqual(
+            set(byName["Cilantro"]),
+            {
+                "id",
+                "name",
+                "locationId",
+                "category",
+                "unitOfMeasure",
+                "reorderPoint",
+                "stock",
+                "needsReorder",
+                "expiredLots",
+                "createdAt",
+            },
+        )
+        self.assertEqual(getItem(self.connection, cilantro["id"]), byName["Cilantro"])
+
+    def testInv010FiltersByLocationId(self) -> None:
+        self.createBaseItem(name="Cilantro", locationId="queChille")
+        self.createBaseItem(name="Jalapeños", locationId="chilliBeans")
+        self.createBaseItem(name="Cebolla", locationId="chilliBeans")
+        self.assertEqual([item["name"] for item in listItems(self.connection, "chilliBeans")], ["Cebolla", "Jalapeños"])
+        self.assertEqual([item["name"] for item in listItems(self.connection, locationId="queChille")], ["Cilantro"])
+        self.assertEqual(listItems(self.connection, "laArepita"), [])
+        self.assertEqual(len(listItems(self.connection)), 3)
+
+    def testInv010RejectsUnknownLocation(self) -> None:
+        for locationId in ("unknown", "", 5):
+            with self.subTest(locationId=locationId):
+                with self.assertRaises(LookupError):
+                    listItems(self.connection, locationId)
+
+    def testInv009RejectsGetOfUnknownItem(self) -> None:
+        with self.assertRaises(LookupError):
+            getItem(self.connection, generateId())
+        with self.assertRaises(LookupError):
+            getItem(self.connection, "not-a-uuid")
+
+    def testInv042ItemAboveReorderPointHasNoMark(self) -> None:
+        item = self.createBaseItem(reorderPoint="2")
+        self.insertMovement(item["id"], quantityMilli=2001)
+        self.assertIs(getItem(self.connection, item["id"])["needsReorder"], False)
+        self.assertIs(listItems(self.connection)[0]["needsReorder"], False)
+
+    def testInv043ListMarksItemAtOrBelowReorderPoint(self) -> None:
+        atPoint = self.createBaseItem(name="En el punto", reorderPoint="2")
+        below = self.createBaseItem(name="Por debajo", reorderPoint="2")
+        empty = self.createBaseItem(name="Sin movimientos", reorderPoint="0")
+        self.insertMovement(atPoint["id"], quantityMilli=2000)
+        self.insertMovement(below["id"], quantityMilli=1999)
+        marks = {item["name"]: item["needsReorder"] for item in listItems(self.connection, "queChille")}
+        self.assertEqual(marks, {"En el punto": True, "Por debajo": True, "Sin movimientos": True})
+        self.assertIs(getItem(self.connection, empty["id"])["needsReorder"], True)
+
+
+class MovementTestCase(InventorySchemaTestCase):
+    fixedNow = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.item = createItem(
+            self.connection,
+            {
+                "name": "Jugo de lulo",
+                "locationId": "queChille",
+                "category": "beverages",
+                "unitOfMeasure": "l",
+                "reorderPoint": "10",
+            },
+            now=self.fixedNow,
+        )
+        self.itemId = self.item["id"]
+
+    def inbound(self, **overrides: object) -> dict:
+        fields = {"movementType": "inbound", "quantity": "5", "reason": "weekly delivery"}
+        fields.update(overrides)
+        return fields
+
+    def movementCount(self) -> int:
+        return self.connection.execute("SELECT COUNT(*) FROM stockMovements").fetchone()[0]
+
+
+
+class RegisterInboundTests(MovementTestCase):
+    def testInv011RecordsInboundWithSystemUtcCreatedAt(self) -> None:
+        movement = registerMovement(self.connection, self.itemId, self.inbound(), now=self.fixedNow)
+        self.assertTrue(isUuid4(movement["id"]))
+        self.assertEqual(
+            {key: movement[key] for key in ("itemId", "movementType", "quantity", "reason", "lotCode", "createdAt")},
+            {
+                "itemId": self.itemId,
+                "movementType": "inbound",
+                "quantity": "5.000",
+                "reason": "weekly delivery",
+                "lotCode": None,
+                "createdAt": formatUtcTimestamp(self.fixedNow),
+            },
+        )
+        row = self.connection.execute("SELECT * FROM stockMovements WHERE id = ?", (movement["id"],)).fetchone()
+        self.assertEqual((row["quantityMilli"], row["createdAt"]), (5000, formatUtcTimestamp(self.fixedNow)))
+        before = utcNow()
+        automatic = registerMovement(self.connection, self.itemId, self.inbound())
+        after = utcNow()
+        self.assertTrue(before <= parseUtcTimestamp(automatic["createdAt"]) <= after)
+        with self.assertRaisesRegex(ValueError, "Unsupported"):
+            registerMovement(self.connection, self.itemId, self.inbound(createdAt="2020-01-01T00:00:00Z"))
+        self.assertEqual(self.movementCount(), 2)
+
+    def testInv012InboundIncreasesStock(self) -> None:
+        self.assertEqual(self.item["stock"], "0.000")
+        first = registerMovement(self.connection, self.itemId, self.inbound(quantity="5"))
+        second = registerMovement(self.connection, self.itemId, self.inbound(quantity="2.5"))
+        self.assertEqual((first["stock"], second["stock"]), ("5.000", "7.500"))
+        self.assertEqual(getItem(self.connection, self.itemId)["stock"], "7.500")
+        self.assertFalse(self.connection.in_transaction)
+
+    def testInv015RejectsUnknownMovementType(self) -> None:
+        for movementType in ("transfer", "", "INBOUND", None, 5):
+            with self.subTest(movementType=movementType):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, self.itemId, self.inbound(movementType=movementType))
+        with self.assertRaisesRegex(ValueError, "Missing"):
+            registerMovement(self.connection, self.itemId, {"quantity": "5", "reason": "weekly delivery"})
+        self.assertEqual(self.movementCount(), 0)
+
+    def testInv016RejectsMovementOfUnknownItem(self) -> None:
+        for itemId in (generateId(), "not-a-uuid"):
+            with self.subTest(itemId=itemId):
+                with self.assertRaises(LookupError):
+                    registerMovement(self.connection, itemId, self.inbound())
+        self.assertEqual(self.movementCount(), 0)
+
+    def testInv017RejectsNonPositiveInbound(self) -> None:
+        for quantity in ("0", "0.000", "-1", "-0.500"):
+            with self.subTest(quantity=quantity):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, self.itemId, self.inbound(quantity=quantity))
+        self.assertEqual(self.movementCount(), 0)
+
+    def testInv020RejectsExcessDecimalsInMovement(self) -> None:
+        unitItem = createItem(
+            self.connection,
+            {
+                "name": "Servilletas",
+                "locationId": "chilliBeans",
+                "category": "packaging",
+                "unitOfMeasure": "unit",
+                "reorderPoint": "500",
+            },
+            now=self.fixedNow,
+        )
+        with self.assertRaisesRegex(ValueError, "decimal"):
+            registerMovement(self.connection, self.itemId, self.inbound(quantity="1.2345"))
+        with self.assertRaisesRegex(ValueError, "decimal"):
+            registerMovement(self.connection, unitItem["id"], self.inbound(quantity="1.5"))
+        with self.assertRaises(ValueError):
+            registerMovement(self.connection, self.itemId, self.inbound(quantity=5))
+        self.assertEqual(self.movementCount(), 0)
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="1.234"))
+        registerMovement(self.connection, unitItem["id"], self.inbound(quantity="1500"))
+        self.assertEqual(self.movementCount(), 2)
+
+    def testInv021RejectsBlankInboundReason(self) -> None:
+        for reason in ("", "   ", None, 5):
+            with self.subTest(reason=reason):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, self.itemId, self.inbound(reason=reason))
+        fields = self.inbound()
+        del fields["reason"]
+        with self.assertRaisesRegex(ValueError, "Missing"):
+            registerMovement(self.connection, self.itemId, fields)
+        self.assertEqual(self.movementCount(), 0)
+
+
+class RegisterOutboundTests(MovementTestCase):
+    def outbound(self, **overrides: object) -> dict:
+        fields = {"movementType": "outbound", "quantity": "3.5", "reason": "kitchen use"}
+        fields.update(overrides)
+        return fields
+
+    def stockMilli(self) -> int:
+        return calculateStock(self.connection, itemId=self.itemId)[self.itemId]
+
+    def testInv013OutboundDecreasesStock(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="10"))
+        movement = registerMovement(self.connection, self.itemId, self.outbound(), now=self.fixedNow)
+        self.assertEqual(
+            (movement["movementType"], movement["quantity"], movement["reason"], movement["stock"]),
+            ("outbound", "3.500", "kitchen use", "6.500"),
+        )
+        self.assertEqual(movement["createdAt"], formatUtcTimestamp(self.fixedNow))
+        row = self.connection.execute("SELECT * FROM stockMovements WHERE id = ?", (movement["id"],)).fetchone()
+        self.assertEqual(row["quantityMilli"], 3500)
+        self.assertEqual(self.stockMilli(), 6500)
+
+    def testInv017RejectsNonPositiveOutbound(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="10"))
+        for quantity in ("0", "-1", "-0.500"):
+            with self.subTest(quantity=quantity):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, self.itemId, self.outbound(quantity=quantity))
+        self.assertEqual(self.movementCount(), 1)
+        self.assertEqual(self.stockMilli(), 10000)
+
+    def testInv021RejectsBlankOutboundReason(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="10"))
+        for reason in ("", "   ", None, 5):
+            with self.subTest(reason=reason):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, self.itemId, self.outbound(reason=reason))
+        self.assertEqual(self.movementCount(), 1)
+
+    def testInv023RejectsOutboundBelowZero(self) -> None:
+        with self.assertRaises(BusinessRuleError):
+            registerMovement(self.connection, self.itemId, self.outbound(quantity="0.001"))
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="5"))
+        with self.assertRaisesRegex(BusinessRuleError, "stock"):
+            registerMovement(self.connection, self.itemId, self.outbound(quantity="5.001"))
+        self.assertEqual(self.stockMilli(), 5000)
+
+    def testInv023AcceptsOutboundThatLeavesStockAtZero(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="5"))
+        movement = registerMovement(self.connection, self.itemId, self.outbound(quantity="5"))
+        self.assertEqual(movement["stock"], "0.000")
+        self.assertEqual(self.stockMilli(), 0)
+        with self.assertRaises(BusinessRuleError):
+            registerMovement(self.connection, self.itemId, self.outbound(quantity="0.001"))
+
+    def testInv023RejectionLeavesNoMovement(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="2"))
+        with self.assertRaises(BusinessRuleError):
+            registerMovement(self.connection, self.itemId, self.outbound(quantity="3"))
+        self.assertEqual(self.movementCount(), 1)
+        self.assertFalse(self.connection.in_transaction)
+        registerMovement(self.connection, self.itemId, self.outbound(quantity="2"))
+        self.assertEqual(self.movementCount(), 2)
+
+
+class RegisterAdjustmentTests(MovementTestCase):
+    def adjustment(self, **overrides: object) -> dict:
+        fields = {"movementType": "adjustment", "quantity": "-2", "reason": "waste"}
+        fields.update(overrides)
+        return fields
+
+    def stockMilli(self) -> int:
+        return calculateStock(self.connection, itemId=self.itemId)[self.itemId]
+
+    def testInv014AdjustmentAddsSignedQuantity(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="10"))
+        reduced = registerMovement(self.connection, self.itemId, self.adjustment(), now=self.fixedNow)
+        self.assertEqual(
+            (reduced["movementType"], reduced["quantity"], reduced["reason"], reduced["stock"]),
+            ("adjustment", "-2.000", "waste", "8.000"),
+        )
+        self.assertEqual(reduced["createdAt"], formatUtcTimestamp(self.fixedNow))
+        increased = registerMovement(
+            self.connection, self.itemId, self.adjustment(quantity="1.5", reason="count_correction")
+        )
+        self.assertEqual((increased["quantity"], increased["stock"]), ("1.500", "9.500"))
+        row = self.connection.execute("SELECT quantityMilli FROM stockMovements WHERE id = ?", (reduced["id"],)).fetchone()
+        self.assertEqual(row["quantityMilli"], -2000)
+        self.assertEqual(self.stockMilli(), 9500)
+
+    def testInv014CountCorrectionAcceptsBothSigns(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="3"))
+        down = registerMovement(self.connection, self.itemId, self.adjustment(quantity="-1", reason="count_correction"))
+        up = registerMovement(self.connection, self.itemId, self.adjustment(quantity="4", reason="count_correction"))
+        self.assertEqual((down["stock"], up["stock"]), ("2.000", "6.000"))
+
+    def testInv018RejectsZeroAdjustment(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="3"))
+        for reason in ("waste", "theft", "count_correction"):
+            for quantity in ("0", "0.000", "-0"):
+                with self.subTest(reason=reason, quantity=quantity):
+                    with self.assertRaises(ValueError):
+                        registerMovement(self.connection, self.itemId, self.adjustment(quantity=quantity, reason=reason))
+        self.assertEqual(self.movementCount(), 1)
+
+    def testInv019RejectsPositiveWasteAndTheft(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="3"))
+        for reason in ("waste", "theft"):
+            with self.subTest(reason=reason):
+                with self.assertRaisesRegex(ValueError, "negative"):
+                    registerMovement(self.connection, self.itemId, self.adjustment(quantity="1", reason=reason))
+        self.assertEqual(self.movementCount(), 1)
+        self.assertEqual(self.stockMilli(), 3000)
+
+    def testInv022RejectsMissingOrUnknownAdjustmentReason(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="3"))
+        for reason in ("", "   ", "purchase", "Waste", None, 5):
+            with self.subTest(reason=reason):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, self.itemId, self.adjustment(reason=reason))
+        fields = self.adjustment()
+        del fields["reason"]
+        with self.assertRaisesRegex(ValueError, "Missing"):
+            registerMovement(self.connection, self.itemId, fields)
+        self.assertEqual(self.movementCount(), 1)
+
+    def testInv024RejectsAdjustmentBelowZero(self) -> None:
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="1"))
+        with self.assertRaisesRegex(BusinessRuleError, "stock"):
+            registerMovement(self.connection, self.itemId, self.adjustment(quantity="-1.001"))
+        with self.assertRaises(BusinessRuleError):
+            registerMovement(self.connection, self.itemId, self.adjustment(quantity="-1.001", reason="count_correction"))
+        self.assertEqual(self.stockMilli(), 1000)
+        registerMovement(self.connection, self.itemId, self.adjustment(quantity="-1", reason="theft"))
+        self.assertEqual(self.stockMilli(), 0)
+        with self.assertRaises(BusinessRuleError):
+            registerMovement(self.connection, self.itemId, self.adjustment(quantity="-0.001", reason="count_correction"))
+        self.assertEqual(self.movementCount(), 2)
+        self.assertFalse(self.connection.in_transaction)
+
+
+class LotControlTests(MovementTestCase):
+    def createItemOfCategory(self, category: str) -> str:
+        item = createItem(
+            self.connection,
+            {
+                "name": f"Artículo {category}",
+                "locationId": "queChille",
+                "category": category,
+                "unitOfMeasure": "kg",
+                "reorderPoint": "1",
+            },
+            now=self.fixedNow,
+        )
+        return item["id"]
+
+    def assertEveryMovementTypeNeedsLot(self, category: str) -> None:
+        itemId = self.createItemOfCategory(category)
+        self.insertMovement(itemId, quantityMilli=10000)
+        requests = (
+            {"movementType": "inbound", "quantity": "1", "reason": "delivery"},
+            {"movementType": "outbound", "quantity": "1", "reason": "sale"},
+            {"movementType": "adjustment", "quantity": "-1", "reason": "waste"},
+            {"movementType": "adjustment", "quantity": "1", "reason": "count_correction"},
+        )
+        for fields in requests:
+            with self.subTest(category=category, fields=fields):
+                with self.assertRaisesRegex(BusinessRuleError, "lot"):
+                    registerMovement(self.connection, itemId, fields)
+        self.assertEqual(self.movementCount(), 1)
+
+    def testInv026RejectsMeatMovementWithoutLot(self) -> None:
+        self.assertEveryMovementTypeNeedsLot("meat")
+
+    def testInv026RejectsProduceMovementWithoutLot(self) -> None:
+        self.assertEveryMovementTypeNeedsLot("produce")
+
+    def testInv027AcceptsMovementWithoutLotForOtherCategories(self) -> None:
+        for category in ("sauces_condiments", "beverages", "packaging", "cleaning_supplies"):
+            with self.subTest(category=category):
+                itemId = self.createItemOfCategory(category)
+                inbound = registerMovement(
+                    self.connection, itemId, {"movementType": "inbound", "quantity": "4", "reason": "delivery"}
+                )
+                outbound = registerMovement(
+                    self.connection, itemId, {"movementType": "outbound", "quantity": "1", "reason": "sale"}
+                )
+                adjustment = registerMovement(
+                    self.connection, itemId, {"movementType": "adjustment", "quantity": "-1", "reason": "waste"}
+                )
+                self.assertEqual((inbound["lotCode"], outbound["lotCode"], adjustment["lotCode"]), (None, None, None))
+                self.assertEqual(adjustment["stock"], "2.000")
+
+
+class LotTestCase(MovementTestCase):
+    def createMeatItem(self, name: str = "Punta de anca de res") -> str:
+        return createItem(
+            self.connection,
+            {
+                "name": name,
+                "locationId": "laArepita",
+                "category": "meat",
+                "unitOfMeasure": "kg",
+                "reorderPoint": "20",
+            },
+            now=self.fixedNow,
+        )["id"]
+
+    def lotInbound(self, **overrides: object) -> dict:
+        fields = {
+            "movementType": "inbound",
+            "quantity": "5",
+            "reason": "delivery",
+            "lotCode": "lot001",
+            "expiryDate": "2026-12-01",
+        }
+        fields.update(overrides)
+        return {key: value for key, value in fields.items() if value is not None}
+
+    def lotRows(self) -> list:
+        return self.connection.execute("SELECT * FROM inventoryLots ORDER BY lotCode").fetchall()
+
+
+
+class InboundLotTests(LotTestCase):
+    def testInv028InboundWithNewLotCreatesLot(self) -> None:
+        meatId = self.createMeatItem()
+        movement = registerMovement(self.connection, meatId, self.lotInbound(), now=self.fixedNow)
+        self.assertEqual((movement["lotCode"], movement["stock"]), ("lot001", "5.000"))
+        lots = self.lotRows()
+        self.assertEqual(
+            [(row["lotCode"], row["itemId"], row["expiryDate"]) for row in lots],
+            [("lot001", meatId, "2026-12-01")],
+        )
+        self.assertEqual(calculateStock(self.connection, itemId=meatId, groupByLot=True), {(meatId, "lot001"): 5000})
+        optional = registerMovement(
+            self.connection, self.itemId, self.lotInbound(lotCode="beverageLot", expiryDate="2027-01-15")
+        )
+        self.assertEqual(optional["lotCode"], "beverageLot")
+        self.assertEqual(len(self.lotRows()), 2)
+
+    def testInv028ReceivedAtIsRegistrationInstant(self) -> None:
+        meatId = self.createMeatItem()
+        registerMovement(self.connection, meatId, self.lotInbound(lotCode="fixedLot"), now=self.fixedNow)
+        self.assertEqual(self.lotRows()[0]["receivedAt"], formatUtcTimestamp(self.fixedNow))
+        before = utcNow()
+        movement = registerMovement(self.connection, meatId, self.lotInbound(lotCode="liveLot"))
+        after = utcNow()
+        liveLot = [row for row in self.lotRows() if row["lotCode"] == "liveLot"][0]
+        self.assertEqual(liveLot["receivedAt"], movement["createdAt"])
+        self.assertTrue(before <= parseUtcTimestamp(liveLot["receivedAt"]) <= after)
+
+    def testInv029RejectsNewLotWithoutValidExpiryDate(self) -> None:
+        meatId = self.createMeatItem()
+        for expiryDate in (None, "", "2026-13-01", "2026-02-30", "01/12/2026", "2026-1-5", "20261201", 20261201):
+            with self.subTest(expiryDate=expiryDate):
+                with self.assertRaises(ValueError):
+                    registerMovement(self.connection, meatId, self.lotInbound(expiryDate=expiryDate))
+        with self.assertRaises(ValueError):
+            registerMovement(self.connection, meatId, self.lotInbound(lotCode="   "))
+        fields = self.lotInbound()
+        del fields["lotCode"]
+        with self.assertRaisesRegex(ValueError, "expiryDate"):
+            registerMovement(self.connection, self.itemId, fields)
+        self.assertEqual((self.movementCount(), len(self.lotRows())), (0, 0))
+
+    def testInv030InboundOnExistingLotAddsStockKeepsExpiryDate(self) -> None:
+        meatId = self.createMeatItem()
+        registerMovement(self.connection, meatId, self.lotInbound())
+        withoutDate = registerMovement(self.connection, meatId, self.lotInbound(expiryDate=None, quantity="2"))
+        sameDate = registerMovement(self.connection, meatId, self.lotInbound(quantity="1.5"))
+        self.assertEqual((withoutDate["stock"], sameDate["stock"]), ("7.000", "8.500"))
+        self.assertEqual(calculateStock(self.connection, itemId=meatId, groupByLot=True), {(meatId, "lot001"): 8500})
+        lots = self.lotRows()
+        self.assertEqual([(row["lotCode"], row["expiryDate"]) for row in lots], [("lot001", "2026-12-01")])
+
+    def testInv031RejectsInboundWithDifferentExpiryDate(self) -> None:
+        meatId = self.createMeatItem()
+        registerMovement(self.connection, meatId, self.lotInbound())
+        with self.assertRaisesRegex(BusinessRuleError, "expiryDate"):
+            registerMovement(self.connection, meatId, self.lotInbound(expiryDate="2026-12-02"))
+        self.assertEqual(self.movementCount(), 1)
+        self.assertEqual(self.lotRows()[0]["expiryDate"], "2026-12-01")
+
+    def testInv033RejectsInboundOnLotOfAnotherItem(self) -> None:
+        meatId = self.createMeatItem()
+        otherMeatId = self.createMeatItem("Pechuga de pollo")
+        registerMovement(self.connection, meatId, self.lotInbound())
+        for expiryDate in (None, "2026-12-01"):
+            with self.subTest(expiryDate=expiryDate):
+                with self.assertRaisesRegex(BusinessRuleError, "another item"):
+                    registerMovement(self.connection, otherMeatId, self.lotInbound(expiryDate=expiryDate))
+        self.assertEqual(self.movementCount(), 1)
+        self.assertEqual(calculateStock(self.connection, itemId=otherMeatId), {otherMeatId: 0})
+
+    def testInv055InboundMayOpenAlreadyExpiredLot(self) -> None:
+        meatId = self.createMeatItem()
+        movement = registerMovement(
+            self.connection, meatId, self.lotInbound(lotCode="oldLot", expiryDate="2026-10-01"), now=self.fixedNow
+        )
+        self.assertEqual(movement["stock"], "5.000")
+        self.assertEqual(self.lotRows()[0]["expiryDate"], "2026-10-01")
+        again = registerMovement(
+            self.connection, meatId, self.lotInbound(lotCode="oldLot", expiryDate=None, quantity="1"), now=self.fixedNow
+        )
+        self.assertEqual(again["stock"], "6.000")
+
+
+class LotMovementTests(LotTestCase):
+    def lotRequest(self, movementType: str, lotCode: str, quantity: str, reason: str) -> dict:
+        return {"movementType": movementType, "quantity": quantity, "reason": reason, "lotCode": lotCode}
+
+    def stockedMeatItem(self) -> str:
+        meatId = self.createMeatItem()
+        registerMovement(self.connection, meatId, self.lotInbound(lotCode="lotA", quantity="3"))
+        registerMovement(self.connection, meatId, self.lotInbound(lotCode="lotB", quantity="5", expiryDate="2026-12-15"))
+        return meatId
+
+    def testInv032RejectsOutboundOnUnknownLot(self) -> None:
+        meatId = self.stockedMeatItem()
+        with self.assertRaisesRegex(LookupError, "Lot"):
+            registerMovement(self.connection, meatId, self.lotRequest("outbound", "ghost", "1", "sale"))
+        registerMovement(self.connection, self.itemId, self.inbound(quantity="4"))
+        with self.assertRaisesRegex(LookupError, "Lot"):
+            registerMovement(self.connection, self.itemId, self.lotRequest("outbound", "ghost", "1", "sale"))
+        self.assertEqual(self.movementCount(), 3)
+
+    def testInv032RejectsAdjustmentOnUnknownLot(self) -> None:
+        meatId = self.stockedMeatItem()
+        for reason, quantity in (("waste", "-1"), ("count_correction", "1")):
+            with self.subTest(reason=reason):
+                with self.assertRaisesRegex(LookupError, "Lot"):
+                    registerMovement(self.connection, meatId, self.lotRequest("adjustment", "ghost", quantity, reason))
+        self.assertEqual(self.movementCount(), 2)
+
+    def testInv033RejectsOutboundOnLotOfAnotherItem(self) -> None:
+        meatId = self.stockedMeatItem()
+        otherMeatId = self.createMeatItem("Pechuga de pollo")
+        registerMovement(self.connection, otherMeatId, self.lotInbound(lotCode="lotC", quantity="9"))
+        with self.assertRaisesRegex(BusinessRuleError, "another item"):
+            registerMovement(self.connection, meatId, self.lotRequest("outbound", "lotC", "1", "sale"))
+        with self.assertRaisesRegex(BusinessRuleError, "another item"):
+            registerMovement(self.connection, meatId, self.lotRequest("adjustment", "lotC", "-1", "waste"))
+        self.assertEqual(self.movementCount(), 3)
+        self.assertEqual(calculateStock(self.connection, itemId=otherMeatId, groupByLot=True), {(otherMeatId, "lotC"): 9000})
+
+    def testInv034RejectsMovementBelowLotStock(self) -> None:
+        meatId = self.stockedMeatItem()
+        self.assertEqual(calculateStock(self.connection, itemId=meatId), {meatId: 8000})
+        with self.assertRaisesRegex(BusinessRuleError, "lot"):
+            registerMovement(self.connection, meatId, self.lotRequest("outbound", "lotA", "3.001", "sale"))
+        with self.assertRaisesRegex(BusinessRuleError, "lot"):
+            registerMovement(self.connection, meatId, self.lotRequest("adjustment", "lotA", "-3.001", "waste"))
+        with self.assertRaisesRegex(BusinessRuleError, "lot"):
+            registerMovement(self.connection, meatId, self.lotRequest("adjustment", "lotA", "-4", "count_correction"))
+        self.assertEqual(self.movementCount(), 2)
+        registerMovement(self.connection, meatId, self.lotRequest("outbound", "lotA", "3", "sale"))
+        self.assertEqual(
+            calculateStock(self.connection, itemId=meatId, groupByLot=True),
+            {(meatId, "lotA"): 0, (meatId, "lotB"): 5000},
+        )
+        with self.assertRaisesRegex(BusinessRuleError, "lot"):
+            registerMovement(self.connection, meatId, self.lotRequest("outbound", "lotA", "0.001", "sale"))
+
+    def testInv035LotStockIgnoresOtherLots(self) -> None:
+        meatId = self.stockedMeatItem()
+        outbound = registerMovement(self.connection, meatId, self.lotRequest("outbound", "lotB", "2", "sale"))
+        registerMovement(self.connection, meatId, self.lotRequest("adjustment", "lotA", "-0.5", "theft"))
+        self.assertEqual((outbound["lotCode"], outbound["stock"]), ("lotB", "6.000"))
+        self.assertEqual(
+            calculateStock(self.connection, itemId=meatId, groupByLot=True),
+            {(meatId, "lotA"): 2500, (meatId, "lotB"): 3000},
+        )
+        self.assertEqual(calculateStock(self.connection, itemId=meatId), {meatId: 5500})
+
+
+class ExpiredLotTests(LotTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.meatId = self.createMeatItem()
+        registerMovement(
+            self.connection, self.meatId, self.lotInbound(lotCode="oldLot", quantity="5", expiryDate="2026-10-27"), now=self.fixedNow
+        )
+        registerMovement(
+            self.connection, self.meatId, self.lotInbound(lotCode="freshLot", quantity="3", expiryDate="2026-10-28"), now=self.fixedNow
+        )
+
+    def movement(self, movementType: str, lotCode: str, quantity: str, reason: str) -> dict:
+        return registerMovement(
+            self.connection,
+            self.meatId,
+            {"movementType": movementType, "quantity": quantity, "reason": reason, "lotCode": lotCode},
+            now=self.fixedNow,
+        )
+
+    def testInv048LotIsExpiredWhenExpiryDateBeforeTodayUtc(self) -> None:
+        self.assertTrue(isLotExpired("2026-10-27", self.fixedNow))
+        self.assertFalse(isLotExpired("2026-10-28", self.fixedNow))
+        self.assertFalse(isLotExpired("2026-10-29", self.fixedNow))
+        justBeforeMidnight = datetime(2026, 10, 28, 23, 59, 59, tzinfo=timezone.utc)
+        self.assertFalse(isLotExpired("2026-10-28", justBeforeMidnight))
+        self.assertTrue(isLotExpired("2026-10-28", justBeforeMidnight + timedelta(seconds=1)))
+        offsetNow = datetime(2026, 10, 29, 1, 0, 0, tzinfo=timezone(timedelta(hours=2)))
+        self.assertFalse(isLotExpired("2026-10-28", offsetNow))
+        with self.assertRaisesRegex(BusinessRuleError, "expired"):
+            self.movement("outbound", "oldLot", "1", "sale")
+
+    def testInv048LotExpiringTodayIsNotExpired(self) -> None:
+        self.assertEqual(self.movement("outbound", "freshLot", "1", "sale")["stock"], "7.000")
+        self.assertEqual(self.movement("adjustment", "freshLot", "-1", "theft")["stock"], "6.000")
+        self.assertEqual(self.movement("adjustment", "freshLot", "1", "count_correction")["stock"], "7.000")
+
+    def testInv049ExpiredStockCountsInAvailableStock(self) -> None:
+        self.assertEqual(calculateStock(self.connection, itemId=self.meatId), {self.meatId: 8000})
+        item = getItem(self.connection, self.meatId)
+        self.assertEqual(item["stock"], "8.000")
+        self.assertIs(item["needsReorder"], True)
+        self.assertEqual(
+            calculateStock(self.connection, itemId=self.meatId, groupByLot=True),
+            {(self.meatId, "oldLot"): 5000, (self.meatId, "freshLot"): 3000},
+        )
+
+    def testInv050RejectsOutboundOnExpiredLot(self) -> None:
+        before = self.movementCount()
+        for quantity in ("1", "5"):
+            with self.subTest(quantity=quantity):
+                with self.assertRaisesRegex(BusinessRuleError, "expired"):
+                    self.movement("outbound", "oldLot", quantity, "sale")
+        self.assertEqual(self.movementCount(), before)
+        self.assertEqual(self.movement("outbound", "freshLot", "1", "sale")["lotCode"], "freshLot")
+
+    def testInv051RejectsNonWasteAdjustmentOnExpiredLot(self) -> None:
+        before = self.movementCount()
+        for quantity, reason in (("-1", "theft"), ("-1", "count_correction"), ("1", "count_correction")):
+            with self.subTest(quantity=quantity, reason=reason):
+                with self.assertRaisesRegex(BusinessRuleError, "expired"):
+                    self.movement("adjustment", "oldLot", quantity, reason)
+        self.assertEqual(self.movementCount(), before)
+        self.assertEqual(calculateStock(self.connection, itemId=self.meatId), {self.meatId: 8000})
+
+    def testInv052WasteAdjustmentReducesExpiredLotStock(self) -> None:
+        movement = self.movement("adjustment", "oldLot", "-2", "waste")
+        self.assertEqual((movement["lotCode"], movement["stock"]), ("oldLot", "6.000"))
+        self.assertEqual(
+            calculateStock(self.connection, itemId=self.meatId, groupByLot=True)[(self.meatId, "oldLot")], 3000
+        )
+        with self.assertRaisesRegex(BusinessRuleError, "lot"):
+            self.movement("adjustment", "oldLot", "-3.001", "waste")
+        self.assertEqual(self.movement("adjustment", "oldLot", "-3", "waste")["stock"], "3.000")
+        registerMovement(
+            self.connection, self.meatId, self.lotInbound(lotCode="oldLot", quantity="1", expiryDate=None), now=self.fixedNow
+        )
+
+
+class StockReportTests(LotTestCase):
+    def movement(self, itemId: str, movementType: str, quantity: str, reason: str, **extra: object) -> dict:
+        fields = {"movementType": movementType, "quantity": quantity, "reason": reason, **extra}
+        return registerMovement(self.connection, itemId, fields, now=self.fixedNow)
+
+    def adjustmentsByReason(self, report: dict) -> dict:
+        return {entry["reason"]: entry["total"] for entry in report["adjustments"]}
+
+    def testInv045ReportReturnsStockAndInboundOutboundTotals(self) -> None:
+        self.movement(self.itemId, "inbound", "10", "delivery")
+        self.movement(self.itemId, "inbound", "5", "delivery")
+        self.movement(self.itemId, "outbound", "3", "sale")
+        self.movement(self.itemId, "outbound", "1.25", "sale")
+        self.movement(self.itemId, "adjustment", "-2", "waste")
+        report = getStockReport(self.connection, self.itemId, now=self.fixedNow)
+        self.assertEqual(
+            {key: report[key] for key in ("itemId", "unitOfMeasure", "stock", "totalInbound", "totalOutbound", "reorderPoint")},
+            {
+                "itemId": self.itemId,
+                "unitOfMeasure": "l",
+                "stock": "8.750",
+                "totalInbound": "15.000",
+                "totalOutbound": "4.250",
+                "reorderPoint": "10.000",
+            },
+        )
+        empty = createItem(
+            self.connection,
+            {"name": "Vacío", "locationId": "queChille", "category": "beverages", "unitOfMeasure": "unit", "reorderPoint": "3"},
+        )
+        emptyReport = getStockReport(self.connection, empty["id"], now=self.fixedNow)
+        self.assertEqual(
+            (emptyReport["stock"], emptyReport["totalInbound"], emptyReport["totalOutbound"], emptyReport["lots"]),
+            ("0", "0", "0", []),
+        )
+
+    def testInv046ReportReturnsWasteTheftCountCorrectionSeparately(self) -> None:
+        self.movement(self.itemId, "inbound", "20", "delivery")
+        self.movement(self.itemId, "adjustment", "-2", "waste")
+        self.movement(self.itemId, "adjustment", "-1", "waste")
+        self.movement(self.itemId, "adjustment", "-1.5", "theft")
+        self.movement(self.itemId, "adjustment", "0.5", "count_correction")
+        report = getStockReport(self.connection, self.itemId, now=self.fixedNow)
+        self.assertEqual(
+            report["adjustments"],
+            [
+                {"reason": "waste", "total": "-3.000"},
+                {"reason": "theft", "total": "-1.500"},
+                {"reason": "count_correction", "total": "0.500"},
+            ],
+        )
+        self.assertEqual(report["stock"], "16.000")
+
+    def testInv046ReportAlwaysListsThreeReasons(self) -> None:
+        report = getStockReport(self.connection, self.itemId, now=self.fixedNow)
+        self.assertEqual(
+            report["adjustments"],
+            [
+                {"reason": "waste", "total": "0.000"},
+                {"reason": "theft", "total": "0.000"},
+                {"reason": "count_correction", "total": "0.000"},
+            ],
+        )
+
+    def testInv047ReportReturnsStockPerLotWithExpiryDate(self) -> None:
+        meatId = self.createMeatItem()
+        self.movement(meatId, "inbound", "4", "delivery", lotCode="lotB", expiryDate="2026-12-15")
+        self.movement(meatId, "inbound", "6", "delivery", lotCode="lotA", expiryDate="2026-11-20")
+        self.movement(meatId, "outbound", "1", "sale", lotCode="lotA")
+        report = getStockReport(self.connection, meatId, now=self.fixedNow)
+        self.assertEqual(
+            [(lot["lotCode"], lot["expiryDate"], lot["stock"]) for lot in report["lots"]],
+            [("lotA", "2026-11-20", "5.000"), ("lotB", "2026-12-15", "4.000")],
+        )
+        self.assertEqual(report["stock"], "9.000")
+
+    def testInv053ReportReturnsExpiredStockPerLot(self) -> None:
+        meatId = self.createMeatItem()
+        self.movement(meatId, "inbound", "5", "delivery", lotCode="oldLot", expiryDate="2026-10-01")
+        self.movement(meatId, "inbound", "3", "delivery", lotCode="freshLot", expiryDate="2026-11-30")
+        report = getStockReport(self.connection, meatId, now=self.fixedNow)
+        self.assertEqual(
+            [(lot["lotCode"], lot["expired"], lot["stock"], lot["expiredStock"]) for lot in report["lots"]],
+            [("oldLot", True, "5.000", "5.000"), ("freshLot", False, "3.000", "0.000")],
+        )
+        self.movement(meatId, "adjustment", "-2", "waste", lotCode="oldLot")
+        later = getStockReport(self.connection, meatId, now=self.fixedNow)
+        self.assertEqual(later["lots"][0]["expiredStock"], "3.000")
+        self.assertEqual(later["stock"], "6.000")
+
+    def testInv053ItemViewListsExpiredLotsWithStock(self) -> None:
+        meatId = self.createMeatItem()
+        self.movement(meatId, "inbound", "5", "delivery", lotCode="oldLot", expiryDate="2026-10-01")
+        self.movement(meatId, "inbound", "3", "delivery", lotCode="freshLot", expiryDate="2026-11-30")
+        expected = [{"lotCode": "oldLot", "expiryDate": "2026-10-01", "stock": "5.000"}]
+        self.assertEqual(getItem(self.connection, meatId, now=self.fixedNow)["expiredLots"], expected)
+        listed = {item["id"]: item for item in listItems(self.connection, now=self.fixedNow)}
+        self.assertEqual(listed[meatId]["expiredLots"], expected)
+        self.assertEqual(listed[self.itemId]["expiredLots"], [])
+        self.movement(meatId, "adjustment", "-5", "waste", lotCode="oldLot")
+        self.assertEqual(getItem(self.connection, meatId, now=self.fixedNow)["expiredLots"], [])
+
+    def testInv043ReportMarksReorder(self) -> None:
+        self.movement(self.itemId, "inbound", "10.001", "delivery")
+        self.assertIs(getStockReport(self.connection, self.itemId)["needsReorder"], False)
+        self.movement(self.itemId, "adjustment", "-0.001", "waste")
+        self.assertIs(getStockReport(self.connection, self.itemId)["needsReorder"], True)
+        self.movement(self.itemId, "outbound", "5", "sale")
+        self.assertIs(getStockReport(self.connection, self.itemId)["needsReorder"], True)
+
+    def testInv009RejectsReportOfUnknownItem(self) -> None:
+        for itemId in (generateId(), "not-a-uuid"):
+            with self.assertRaises(LookupError):
+                getStockReport(self.connection, itemId)
+
+
+class ReorderSignalTests(InventorySchemaTestCase):
+    fixedNow = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+    def createInLocation(self, name: str, reorderPoint: str, locationId: str = "queChille", **overrides: object) -> str:
+        fields = {
+            "name": name,
+            "locationId": locationId,
+            "category": "beverages",
+            "unitOfMeasure": "l",
+            "reorderPoint": reorderPoint,
+        }
+        fields.update(overrides)
+        return createItem(self.connection, fields, now=self.fixedNow)["id"]
+
+    def stock(self, itemId: str, quantity: str, **extra: object) -> None:
+        registerMovement(
+            self.connection,
+            itemId,
+            {"movementType": "inbound", "quantity": quantity, "reason": "delivery", **extra},
+            now=self.fixedNow,
+        )
+
+    def testInv041ReorderSignalReturnsItemsAtOrBelowReorderPoint(self) -> None:
+        atPoint = self.createInLocation("En el punto", "2")
+        below = self.createInLocation("Por debajo", "5")
+        above = self.createInLocation("Por encima", "2")
+        elsewhere = self.createInLocation("Otro local", "9", locationId="chilliBeans")
+        self.stock(atPoint, "2")
+        self.stock(below, "1.25")
+        self.stock(above, "7")
+        self.stock(elsewhere, "1")
+        signal = getReorderSignal(self.connection, "queChille")
+        self.assertEqual(
+            signal,
+            [
+                {"itemId": atPoint, "name": "En el punto", "unitOfMeasure": "l", "stock": "2.000", "reorderPoint": "2.000"},
+                {"itemId": below, "name": "Por debajo", "unitOfMeasure": "l", "stock": "1.250", "reorderPoint": "5.000"},
+            ],
+        )
+        self.assertEqual([entry["itemId"] for entry in getReorderSignal(self.connection, "chilliBeans")], [elsewhere])
+
+    def testInv041ItemWithoutMovementsAppears(self) -> None:
+        empty = self.createInLocation("Sin movimientos", "3", locationId="theBigSauce")
+        signal = getReorderSignal(self.connection, "theBigSauce")
+        self.assertEqual([(entry["itemId"], entry["stock"], entry["reorderPoint"]) for entry in signal], [(empty, "0.000", "3.000")])
+        self.assertEqual(getReorderSignal(self.connection, "laArepita"), [])
+
+    def testInv042ReorderSignalExcludesItemsAboveReorderPoint(self) -> None:
+        item = self.createInLocation("Por encima", "2")
+        self.stock(item, "2.001")
+        self.assertEqual(getReorderSignal(self.connection, "queChille"), [])
+
+    def testInv044RejectsReorderSignalOfUnknownLocation(self) -> None:
+        for locationId in ("unknown", "", None, 5):
+            with self.subTest(locationId=locationId):
+                with self.assertRaises(LookupError):
+                    getReorderSignal(self.connection, locationId)
+
+    def testInv049ReorderSignalCountsExpiredStock(self) -> None:
+        meatId = self.createInLocation("Costilla", "4", category="meat", unitOfMeasure="kg")
+        self.stock(meatId, "5", lotCode="oldLot", expiryDate="2026-10-01")
+        self.assertEqual(getItem(self.connection, meatId, now=self.fixedNow)["expiredLots"][0]["stock"], "5.000")
+        self.assertEqual(getReorderSignal(self.connection, "queChille"), [])
+        registerMovement(
+            self.connection,
+            meatId,
+            {"movementType": "adjustment", "quantity": "-1", "reason": "waste", "lotCode": "oldLot"},
+            now=self.fixedNow,
+        )
+        self.assertEqual([entry["itemId"] for entry in getReorderSignal(self.connection, "queChille")], [meatId])
+
+
+class ConcurrentMovementTests(unittest.TestCase):
+    initialStock = "5"
+
+    def setUp(self) -> None:
+        temporaryDirectory = tempfile.TemporaryDirectory()
+        self.addCleanup(temporaryDirectory.cleanup)
+        self.databasePath = Path(temporaryDirectory.name) / "inventory.sqlite"
+        connection = createConnection(self.databasePath)
+        self.addCleanup(connection.close)
+        initializeDatabase(connection)
+        item = createItem(
+            connection,
+            {
+                "name": "Jugo de lulo",
+                "locationId": "queChille",
+                "category": "beverages",
+                "unitOfMeasure": "l",
+                "reorderPoint": "1",
+            },
+        )
+        self.itemId = item["id"]
+        registerMovement(
+            connection,
+            self.itemId,
+            {"movementType": "inbound", "quantity": self.initialStock, "reason": "opening stock"},
+        )
+        self.connection = connection
+
+    def runConcurrently(self, requests: list[dict]) -> list:
+        barrier = threading.Barrier(len(requests))
+        outcomes: list = [None] * len(requests)
+
+        def worker(index: int, fields: dict) -> None:
+            workerConnection = createConnection(self.databasePath)
+            try:
+                barrier.wait()
+                outcomes[index] = registerMovement(workerConnection, self.itemId, fields)
+            except Exception as error:
+                outcomes[index] = error
+            finally:
+                workerConnection.close()
+
+        threads = [threading.Thread(target=worker, args=(index, fields)) for index, fields in enumerate(requests)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=30)
+        self.assertFalse(any(thread.is_alive() for thread in threads))
+        return outcomes
+
+    def stockMilli(self) -> int:
+        return calculateStock(self.connection, itemId=self.itemId)[self.itemId]
+
+    def testInv025ConcurrentOutboundsNeverLeaveNegativeStock(self) -> None:
+        requests = [{"movementType": "outbound", "quantity": "1", "reason": "sale"} for _ in range(8)]
+        outcomes = self.runConcurrently(requests)
+        registered = [outcome for outcome in outcomes if isinstance(outcome, dict)]
+        rejected = [outcome for outcome in outcomes if not isinstance(outcome, dict)]
+        self.assertEqual(len(registered), 5)
+        self.assertTrue(all(isinstance(outcome, BusinessRuleError) for outcome in rejected), rejected)
+        self.assertEqual(len(rejected), 3)
+        self.assertEqual(self.stockMilli(), 0)
+
+    def testInv025OnlyMovementsThatFitAreRegistered(self) -> None:
+        requests = [
+            {"movementType": "outbound", "quantity": "2", "reason": "sale"},
+            {"movementType": "outbound", "quantity": "3", "reason": "sale"},
+            {"movementType": "adjustment", "quantity": "-2.5", "reason": "waste"},
+            {"movementType": "adjustment", "quantity": "-1.5", "reason": "theft"},
+            {"movementType": "outbound", "quantity": "4", "reason": "sale"},
+            {"movementType": "adjustment", "quantity": "-3", "reason": "count_correction"},
+            {"movementType": "inbound", "quantity": "0.5", "reason": "delivery"},
+            {"movementType": "outbound", "quantity": "1", "reason": "sale"},
+        ]
+        outcomes = self.runConcurrently(requests)
+        for outcome in outcomes:
+            self.assertTrue(isinstance(outcome, (dict, BusinessRuleError)), outcome)
+        registered = [outcome["movementType"] for outcome in outcomes if isinstance(outcome, dict)]
+        self.assertIn("inbound", registered)
+        rows = self.connection.execute(
+            "SELECT movementType, quantityMilli FROM stockMovements WHERE reason <> 'opening stock'"
+        ).fetchall()
+        self.assertEqual(len(rows), len(registered))
+        finalStock = self.stockMilli()
+        self.assertGreaterEqual(finalStock, 0)
+        self.assertEqual(
+            finalStock,
+            5000 + sum(row["quantityMilli"] if row["movementType"] != "outbound" else -row["quantityMilli"] for row in rows),
+        )
+        rejectedQuantities = [
+            abs(parseQuantity(request["quantity"], "l"))
+            for request, outcome in zip(requests, outcomes)
+            if isinstance(outcome, BusinessRuleError)
+        ]
+        self.assertTrue(rejectedQuantities)
+        # The only increase in the batch is the 0.5 inbound, which may land after a rejection.
+        self.assertLess(finalStock, min(rejectedQuantities) + 500)
+
+
+if __name__ == "__main__":
+    unittest.main()

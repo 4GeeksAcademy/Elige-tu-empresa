@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#153a35">
+    <title>Inventario · Brasaland</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/inventory.js" defer></script>
+  </head>
+  <body>
+    <header class="siteHeader">
+      <a class="brand" href="/">Brasaland<span>Digital</span></a>
+      <nav class="siteNav" aria-label="Secciones">
+        <a href="/">Incidencias</a>
+        <a href="/inventory.html" aria-current="page">Inventario</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">CONTROL DE STOCK</p>
+          <h1>Inventario</h1>
+          <p class="introText">Da de alta artículos y consulta el stock de cada local. El stock se calcula con los movimientos: no se edita.</p>
+        </div>
+        <div id="connectionStatus" class="connectionStatus" role="status">Conectando…</div>
+      </section>
+
+      <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+
+      <section class="panel" aria-labelledby="registerItemTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">NUEVO ARTÍCULO</p>
+            <h2 id="registerItemTitle">Dar de alta un artículo</h2>
+          </div>
+        </div>
+        <form id="registerItemForm" class="formGrid">
+          <label class="wideField">Nombre<input name="name" maxlength="200" required></label>
+          <label>Local<select name="locationId" required></select></label>
+          <label>Categoría<select name="category" required></select></label>
+          <label>Unidad<select name="unitOfMeasure" required></select></label>
+          <label>Punto de reorden<input name="reorderPoint" inputmode="decimal" pattern="[0-9]+([.][0-9]+)?" required></label>
+          <div class="formActions"><button type="submit">Guardar artículo</button></div>
+        </form>
+      </section>
+
+      <section class="panel" aria-labelledby="movementTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">MOVIMIENTOS</p>
+            <h2 id="movementTitle">Registrar movimiento</h2>
+          </div>
+        </div>
+        <form id="movementForm" class="formGrid">
+          <label class="wideField">Artículo<select name="itemId" required></select></label>
+          <label>Tipo de movimiento
+            <select name="movementType" required>
+              <option value="inbound">Entrada</option>
+              <option value="outbound">Salida</option>
+              <option value="adjustment">Ajuste</option>
+            </select>
+          </label>
+          <label>Cantidad<input name="quantity" inputmode="decimal" pattern="-?[0-9]+([.][0-9]+)?" required></label>
+          <label id="adjustmentReasonField" hidden>Motivo del ajuste<select name="adjustmentReason"></select></label>
+          <label id="freeReasonField">Motivo<input name="freeReason" maxlength="200" required></label>
+          <label>Lote (si aplica)<input name="lotCode" maxlength="100"></label>
+          <label id="expiryDateField" hidden>Caducidad del lote nuevo<input name="expiryDate" type="date"></label>
+          <div class="formActions"><button type="submit">Registrar movimiento</button></div>
+        </form>
+        <p class="muted">En ajustes, usa una cantidad negativa para reducir stock. Indica la fecha de caducidad solo al abrir un lote nuevo.</p>
+      </section>
+
+      <section id="editItemPanel" class="panel" aria-labelledby="editItemTitle" hidden>
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">EDICIÓN</p>
+            <h2 id="editItemTitle">Editar artículo</h2>
+          </div>
+          <button id="cancelEdit" type="button" class="textButton">Cancelar</button>
+        </div>
+        <p class="muted">Local, categoría y unidad solo se pueden cambiar mientras el artículo no tenga movimientos.</p>
+        <form id="editItemForm" class="formGrid">
+          <label class="wideField">Nombre<input name="name" maxlength="200" required></label>
+          <label>Local<select name="locationId" required></select></label>
+          <label>Categoría<select name="category" required></select></label>
+          <label>Unidad<select name="unitOfMeasure" required></select></label>
+          <label>Punto de reorden<input name="reorderPoint" inputmode="decimal" pattern="[0-9]+([.][0-9]+)?" required></label>
+          <div class="formActions"><button type="submit">Guardar cambios</button></div>
+        </form>
+      </section>
+
+      <section aria-labelledby="itemListTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">POR LOCAL</p>
+            <h2 id="itemListTitle">Artículos de inventario</h2>
+          </div>
+        </div>
+        <form id="locationFilterForm" class="filterBar">
+          <label>Local<select id="locationFilter" name="locationId"></select></label>
+        </form>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr><th>Artículo</th><th>Local</th><th>Categoría</th><th>Stock</th><th>Punto de reorden</th><th>Reorden</th><th></th></tr>
+            </thead>
+            <tbody id="itemRows"></tbody>
+          </table>
+          <p id="emptyItems" class="emptyState" hidden>No hay artículos en este local.</p>
+        </div>
+      </section>
+
+      <section id="stockReportPanel" class="panel" aria-labelledby="stockReportTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">DETALLE DE STOCK</p>
+            <h2 id="stockReportTitle">Informe del artículo</h2>
+          </div>
+        </div>
+        <form class="filterBar">
+          <label>Artículo<select id="reportItemFilter"></select></label>
+        </form>
+        <div id="stockReportDetails" class="detailsGrid" aria-live="polite"></div>
+        <p id="emptyStockReport" class="emptyState" hidden>No hay artículos para consultar.</p>
+      </section>
+
+      <section id="reorderPanel" class="panel" aria-labelledby="reorderTitle">
+        <div class="sectionHeading">
+          <div>
+            <p class="eyebrow">REPOSICIÓN</p>
+            <h2 id="reorderTitle">Señal de reorden por local</h2>
+          </div>
+        </div>
+        <form class="filterBar">
+          <label>Local<select id="reorderLocationFilter"></select></label>
+        </form>
+        <div id="reorderRows" aria-live="polite"></div>
+        <p id="emptyReorder" class="emptyState" hidden>No hay artículos que necesiten reorden en este local.</p>
+      </section>
+    </main>
+
+    <footer>
+      <span>Brasaland Digital</span>
+      <span>Inventario · el stock disponible se calcula a partir de los movimientos</span>
+    </footer>
+  </body>
+</html>

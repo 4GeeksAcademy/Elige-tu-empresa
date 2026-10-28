@@ -34,6 +34,10 @@ button { cursor: pointer; }
 }
 
 .siteHeader p { margin: 0; color: #d0ded9; font-size: .9rem; }
+.siteNav { display: flex; gap: 6px; }
+.siteNav a { padding: 8px 12px; border-radius: 8px; color: #d0ded9; font-size: .9rem; text-decoration: none; }
+.siteNav a:hover { background: rgb(255 255 255 / 10%); }
+.siteNav a[aria-current="page"] { background: rgb(255 255 255 / 14%); color: white; font-weight: 700; }
 .brand { color: white; font-size: 1.1rem; font-weight: 800; letter-spacing: -.04em; text-decoration: none; }
 .brand span { margin-left: 6px; color: #f2a58d; font-weight: 500; }
 
@@ -86,6 +90,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .tableTitle { max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
 .viewButton { padding: 7px 10px; font-size: .77rem; }
 .emptyState { margin: 0; padding: 25px; color: var(--muted); text-align: center; }
+.reorderMark { display: inline-block; padding: 3px 9px; border-radius: 999px; background: #fbe5de; color: #9b3f27; font-size: .74rem; font-weight: 800; }
+.rowActions { display: flex; gap: 6px; }
 
 .feedback { display: none; margin: -13px 0 24px; border-radius: 9px; padding: 11px 14px; }
 .feedback[data-kind="success"] { display: block; color: #1c6241; background: #e5f4eb; }
