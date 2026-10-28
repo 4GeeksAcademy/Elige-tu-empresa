@@ -3,7 +3,7 @@
 import re
 import sqlite3
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from services.api.catalogs import catalogIds
 from services.api.database import stockDeltaSql
@@ -258,6 +258,11 @@ def listItems(connection: sqlite3.Connection, locationId: str | None = None) -> 
     return [_itemView(connection, row, stockByItem[row["id"]]) for row in rows]
 
 
+def isLotExpired(expiryDate: str, now: datetime) -> bool:
+    """A lot is expired when its expiry date is before the current UTC date."""
+    return expiryDate < now.astimezone(timezone.utc).date().isoformat()
+
+
 def _validatedExpiryDate(value: object) -> str:
     if not isinstance(value, str) or len(value) != 10:
         raise ValueError("expiryDate must be a date written as YYYY-MM-DD")
@@ -321,6 +326,7 @@ def registerMovement(
     if not isinstance(movementType, str) or movementType not in catalogIds("movementTypes"):
         raise ValueError("movementType is not in the movementTypes catalog")
 
+    moment = now or utcNow()
     with _transaction(connection):
         itemRow = _fetchItemRow(connection, itemId)
         unitOfMeasure = itemRow["unitOfMeasure"]
@@ -344,6 +350,15 @@ def registerMovement(
         lotCode, newLotExpiryDate = _resolveLot(connection, itemRow, movementType, fields)
         if itemRow["category"] in lotControlledCategories and lotCode is None:
             raise BusinessRuleError(f"A lot is required for {itemRow['category']} items")
+        if lotCode is not None and movementType != "inbound":
+            lotExpiryDate = connection.execute(
+                "SELECT expiryDate FROM inventoryLots WHERE lotCode = ?", (lotCode,)
+            ).fetchone()["expiryDate"]
+            if isLotExpired(lotExpiryDate, moment):
+                if movementType == "outbound":
+                    raise BusinessRuleError("An expired lot does not admit outbound movements")
+                if reason != "waste":
+                    raise BusinessRuleError("An expired lot only admits waste adjustments")
         if stockChangeMilli < 0 and lotCode is not None:
             lotStockMilli = calculateStock(connection, itemId=itemId, groupByLot=True).get((itemId, lotCode), 0)
             if lotStockMilli + stockChangeMilli < 0:
@@ -352,7 +367,7 @@ def registerMovement(
             raise BusinessRuleError("Not enough stock for this movement")
 
         movementId = generateId()
-        createdAt = formatUtcTimestamp(now or utcNow())
+        createdAt = formatUtcTimestamp(moment)
         if newLotExpiryDate is not None:
             connection.execute(
                 "INSERT INTO inventoryLots (lotCode, itemId, expiryDate, receivedAt) VALUES (?, ?, ?, ?)",

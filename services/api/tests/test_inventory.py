@@ -2,7 +2,7 @@ import sqlite3
 import tempfile
 import threading
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from services.api.catalogs import catalogIds, catalogs, inventoryCatalogs
@@ -14,6 +14,7 @@ from services.api.inventory import (
     deleteItem,
     formatQuantity,
     getItem,
+    isLotExpired,
     listItems,
     parseQuantity,
     registerMovement,
@@ -1249,6 +1250,84 @@ class LotMovementTests(LotTestCase):
             {(meatId, "lotA"): 2500, (meatId, "lotB"): 3000},
         )
         self.assertEqual(calculateStock(self.connection, itemId=meatId), {meatId: 5500})
+
+
+class ExpiredLotTests(LotTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.meatId = self.createMeatItem()
+        registerMovement(
+            self.connection, self.meatId, self.lotInbound(lotCode="oldLot", quantity="5", expiryDate="2026-10-27"), now=self.fixedNow
+        )
+        registerMovement(
+            self.connection, self.meatId, self.lotInbound(lotCode="freshLot", quantity="3", expiryDate="2026-10-28"), now=self.fixedNow
+        )
+
+    def movement(self, movementType: str, lotCode: str, quantity: str, reason: str) -> dict:
+        return registerMovement(
+            self.connection,
+            self.meatId,
+            {"movementType": movementType, "quantity": quantity, "reason": reason, "lotCode": lotCode},
+            now=self.fixedNow,
+        )
+
+    def testInv048LotIsExpiredWhenExpiryDateBeforeTodayUtc(self) -> None:
+        self.assertTrue(isLotExpired("2026-10-27", self.fixedNow))
+        self.assertFalse(isLotExpired("2026-10-28", self.fixedNow))
+        self.assertFalse(isLotExpired("2026-10-29", self.fixedNow))
+        justBeforeMidnight = datetime(2026, 10, 28, 23, 59, 59, tzinfo=timezone.utc)
+        self.assertFalse(isLotExpired("2026-10-28", justBeforeMidnight))
+        self.assertTrue(isLotExpired("2026-10-28", justBeforeMidnight + timedelta(seconds=1)))
+        offsetNow = datetime(2026, 10, 29, 1, 0, 0, tzinfo=timezone(timedelta(hours=2)))
+        self.assertFalse(isLotExpired("2026-10-28", offsetNow))
+        with self.assertRaisesRegex(BusinessRuleError, "expired"):
+            self.movement("outbound", "oldLot", "1", "sale")
+
+    def testInv048LotExpiringTodayIsNotExpired(self) -> None:
+        self.assertEqual(self.movement("outbound", "freshLot", "1", "sale")["stock"], "7.000")
+        self.assertEqual(self.movement("adjustment", "freshLot", "-1", "theft")["stock"], "6.000")
+        self.assertEqual(self.movement("adjustment", "freshLot", "1", "count_correction")["stock"], "7.000")
+
+    def testInv049ExpiredStockCountsInAvailableStock(self) -> None:
+        self.assertEqual(calculateStock(self.connection, itemId=self.meatId), {self.meatId: 8000})
+        item = getItem(self.connection, self.meatId)
+        self.assertEqual(item["stock"], "8.000")
+        self.assertIs(item["needsReorder"], True)
+        self.assertEqual(
+            calculateStock(self.connection, itemId=self.meatId, groupByLot=True),
+            {(self.meatId, "oldLot"): 5000, (self.meatId, "freshLot"): 3000},
+        )
+
+    def testInv050RejectsOutboundOnExpiredLot(self) -> None:
+        before = self.movementCount()
+        for quantity in ("1", "5"):
+            with self.subTest(quantity=quantity):
+                with self.assertRaisesRegex(BusinessRuleError, "expired"):
+                    self.movement("outbound", "oldLot", quantity, "sale")
+        self.assertEqual(self.movementCount(), before)
+        self.assertEqual(self.movement("outbound", "freshLot", "1", "sale")["lotCode"], "freshLot")
+
+    def testInv051RejectsNonWasteAdjustmentOnExpiredLot(self) -> None:
+        before = self.movementCount()
+        for quantity, reason in (("-1", "theft"), ("-1", "count_correction"), ("1", "count_correction")):
+            with self.subTest(quantity=quantity, reason=reason):
+                with self.assertRaisesRegex(BusinessRuleError, "expired"):
+                    self.movement("adjustment", "oldLot", quantity, reason)
+        self.assertEqual(self.movementCount(), before)
+        self.assertEqual(calculateStock(self.connection, itemId=self.meatId), {self.meatId: 8000})
+
+    def testInv052WasteAdjustmentReducesExpiredLotStock(self) -> None:
+        movement = self.movement("adjustment", "oldLot", "-2", "waste")
+        self.assertEqual((movement["lotCode"], movement["stock"]), ("oldLot", "6.000"))
+        self.assertEqual(
+            calculateStock(self.connection, itemId=self.meatId, groupByLot=True)[(self.meatId, "oldLot")], 3000
+        )
+        with self.assertRaisesRegex(BusinessRuleError, "lot"):
+            self.movement("adjustment", "oldLot", "-3.001", "waste")
+        self.assertEqual(self.movement("adjustment", "oldLot", "-3", "waste")["stock"], "3.000")
+        registerMovement(
+            self.connection, self.meatId, self.lotInbound(lotCode="oldLot", quantity="1", expiryDate=None), now=self.fixedNow
+        )
 
 
 class ConcurrentMovementTests(unittest.TestCase):

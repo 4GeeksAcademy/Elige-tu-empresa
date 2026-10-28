@@ -975,3 +975,25 @@
 - **Desviaciones evitadas:** 05 → solo T-18.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): registrar salidas y ajustes sobre un lote`
+
+## Paso 06 (inventario) — T-19 Lotes caducados
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-19 · **Criterios:** INV-048, INV-049, INV-050, INV-051, INV-052
+- **Qué se hizo:**
+  - Escritos primero seis tests en `ExpiredLotTests`; fallaban por falta de `isLotExpired` (error de importación).
+  - Añadida `isLotExpired(expiryDate, now)`: un lote está caducado si su `expiryDate` es anterior a la fecha UTC de `now`; se prueba el límite de medianoche UTC y un `now` con desfase horario.
+  - `registerMovement` calcula el instante una sola vez (`moment`) y, para salidas y ajustes con lote, rechaza con `BusinessRuleError` una salida sobre un lote caducado aunque tenga stock y un ajuste distinto de `waste`; un `waste` negativo se registra y reduce el stock del lote. La comprobación de caducidad va antes que las de stock. Las entradas no se restringen (INV-055).
+  - El stock caducado sigue contando en el stock disponible y en la marca de reorden del artículo (sin código nuevo; cubierto por el test de INV-049).
+  - Suite completa: 131 pruebas pasan; los tests de concurrencia se repitieron sin fallos.
+- **Archivos:**
+  - `services/api/inventory.py` — `isLotExpired` y reglas de caducidad
+  - `services/api/tests/test_inventory.py` — tests de T-19
+  - `specs/inventory-manager/tasks.md` — T-19 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** `expiredLots` en la vista del artículo (plan §5) no se añadió aquí porque ningún test de T-19 lo pide; se añade en T-20, donde el informe lo necesita, y en la vista de listado cuando el backoffice lo use (T-29).
+- **Desviaciones evitadas:** 05 → solo T-19; sin informe ni reorden.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): aplicar las reglas de lotes caducados`
