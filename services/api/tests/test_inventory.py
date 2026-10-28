@@ -2,8 +2,8 @@ import sqlite3
 import unittest
 
 from services.api.catalogs import catalogIds, catalogs, inventoryCatalogs
-from services.api.database import createConnection, initializeDatabase
-from services.api.inventory import formatQuantity, parseQuantity
+from services.api.database import createConnection, initializeDatabase, stockDeltaSql
+from services.api.inventory import calculateStock, formatQuantity, parseQuantity
 from services.api.models import formatUtcTimestamp, generateId, utcNow
 
 
@@ -365,6 +365,73 @@ class ItemWithMovementsTriggerTests(InventorySchemaTestCase):
         remaining = {row["id"] for row in self.connection.execute("SELECT id FROM inventoryItems")}
         self.assertEqual(remaining, {itemId})
         self.assertEqual(self.connection.execute("SELECT COUNT(*) FROM stockMovements").fetchone()[0], 1)
+
+
+class CalculateStockTests(InventorySchemaTestCase):
+    def testInv036StockIsSumOfSignedMovements(self) -> None:
+        itemId = self.insertItem()
+        self.insertMovement(itemId, quantityMilli=10000)
+        self.insertMovement(itemId, movementType="outbound", quantityMilli=3000, reason="sale")
+        self.insertMovement(itemId, movementType="adjustment", quantityMilli=-500, reason="waste")
+        self.insertMovement(itemId, movementType="adjustment", quantityMilli=200, reason="count_correction")
+        self.assertEqual(calculateStock(self.connection, itemId=itemId), {itemId: 6700})
+
+    def testInv036ItemWithoutMovementsHasZeroStock(self) -> None:
+        itemId = self.insertItem()
+        self.assertEqual(calculateStock(self.connection, itemId=itemId), {itemId: 0})
+        self.assertEqual(calculateStock(self.connection, locationId="queChille"), {itemId: 0})
+        self.assertEqual(calculateStock(self.connection, itemId=generateId()), {})
+        self.assertEqual(calculateStock(self.connection, locationId="laArepita"), {})
+
+    def testInv040SameIngredientInTwoLocationsHasIndependentStock(self) -> None:
+        firstItemId = self.insertItem(locationId="queChille")
+        secondItemId = self.insertItem(locationId="chilliBeans")
+        self.insertMovement(firstItemId, quantityMilli=8000)
+        self.insertMovement(secondItemId, quantityMilli=3000)
+        self.insertMovement(secondItemId, movementType="outbound", quantityMilli=1000, reason="sale")
+        self.assertEqual(calculateStock(self.connection, locationId="queChille"), {firstItemId: 8000})
+        self.assertEqual(calculateStock(self.connection, locationId="chilliBeans"), {secondItemId: 2000})
+        self.assertEqual(
+            calculateStock(self.connection),
+            {firstItemId: 8000, secondItemId: 2000},
+        )
+
+    def testInv035LotStockUsesOnlyLotMovements(self) -> None:
+        itemId = self.insertItem()
+        otherItemId = self.insertItem(name="Cebolla cabezona")
+        self.insertLot(itemId, lotCode="lotA")
+        self.insertLot(itemId, lotCode="lotB")
+        self.insertLot(otherItemId, lotCode="lotC")
+        self.insertMovement(itemId, lotCode="lotA", quantityMilli=5000)
+        self.insertMovement(itemId, lotCode="lotA", movementType="outbound", quantityMilli=2000, reason="sale")
+        self.insertMovement(itemId, lotCode="lotB", quantityMilli=1500)
+        self.insertMovement(itemId, quantityMilli=700)
+        self.insertMovement(otherItemId, lotCode="lotC", quantityMilli=9000)
+        self.assertEqual(
+            calculateStock(self.connection, itemId=itemId, groupByLot=True),
+            {(itemId, "lotA"): 3000, (itemId, "lotB"): 1500},
+        )
+        self.assertEqual(calculateStock(self.connection, itemId=itemId), {itemId: 5200})
+        self.assertEqual(
+            calculateStock(self.connection, locationId="queChille", groupByLot=True),
+            {(itemId, "lotA"): 3000, (itemId, "lotB"): 1500, (otherItemId, "lotC"): 9000},
+        )
+
+    def testInv036TriggerAndCalculateStockShareSignRule(self) -> None:
+        triggerSql = self.connection.execute(
+            "SELECT sql FROM sqlite_master WHERE name = 'stockMovements_preventNegativeStock'"
+        ).fetchone()["sql"]
+        self.assertIn(stockDeltaSql(), triggerSql)
+        self.assertIn(stockDeltaSql("NEW."), triggerSql)
+        itemId = self.insertItem()
+        self.insertMovement(itemId, quantityMilli=9000)
+        self.insertMovement(itemId, movementType="adjustment", quantityMilli=-1500, reason="theft")
+        availableStock = calculateStock(self.connection, itemId=itemId)[itemId]
+        self.assertEqual(availableStock, 7500)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "negative"):
+            self.insertMovement(itemId, movementType="outbound", quantityMilli=availableStock + 1, reason="sale")
+        self.insertMovement(itemId, movementType="outbound", quantityMilli=availableStock, reason="sale")
+        self.assertEqual(calculateStock(self.connection, itemId=itemId), {itemId: 0})
 
 
 if __name__ == "__main__":

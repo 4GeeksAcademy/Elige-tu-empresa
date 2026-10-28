@@ -715,3 +715,27 @@
 - **Desviaciones evitadas:** 05 → solo T-06; el rechazo con su tipo lo darán `updateItem` y `deleteItem`.
 - **Cambios respecto al plan:** ninguno.
 - **Commit:** `feat(inventory): proteger artículos con movimientos en la base de datos`
+
+## Paso 06 (inventario) — T-07 Cálculo del stock
+- **Fecha:** 2026-10-28
+- **Modo:** Agent
+- **Checklist:** T-07 · **Criterios:** INV-035, INV-036, INV-040
+- **Qué se hizo:**
+  - Escritos primero cinco tests en `test_inventory.py`; fallaban por falta de `calculateStock`.
+  - Añadida en `inventory.py` `calculateStock(connection, *, itemId, locationId, groupByLot)`: devuelve milésimas por artículo o por (artículo, lote), con 0 para artículos sin movimientos, y usa `stockDeltaSql` de `database.py` (PD-05).
+  - Añadidos `InventoryItem`, `InventoryLot` y `StockMovement` a `models.py`, como pide el plan para esta tarea; se usan a partir de T-08.
+  - Un test comprueba que el trigger de T-05 y `calculateStock` comparten el fragmento de signo y coinciden en el límite exacto del stock.
+  - Un test mío tenía mal la suma esperada (5200, no 3200); corregí la expectativa, no la función.
+  - Suite completa: 68 pruebas pasan.
+- **Archivos:**
+  - `services/api/inventory.py` — `calculateStock`
+  - `services/api/models.py` — tres dataclasses
+  - `services/api/tests/test_inventory.py` — tests de T-07
+  - `specs/inventory-manager/tasks.md` — T-07 `hecha`
+  - `memory-bank/estado-actual.md` — estado
+  - `memory-bank/historial-commits.md` — registro
+- **Reglas aplicadas:** 00-commits-y-bitacora, 04-nombres-camel-case, 05-desarrollo-guiado-por-spec.
+- **Decisiones y pendientes:** con `groupByLot`, solo salen los lotes que existen; los movimientos sin lote no aparecen en esa vista y sí en el stock del artículo.
+- **Desviaciones evitadas:** 05 → solo T-07; los modelos no tienen test propio porque la tarea no lo pide.
+- **Cambios respecto al plan:** ninguno.
+- **Commit:** `feat(inventory): calcular el stock desde los movimientos`
